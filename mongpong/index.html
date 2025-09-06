@@ -16,9 +16,18 @@
       <span id="scoreR">0</span>
     </div>
     <div class="controls">
-      <strong>Controles</strong> · P1: W/S · P2: ↑/↓ ·
-      <kbd>P</kbd> Pausa · <kbd>R</kbd> Reiniciar · <kbd>A</kbd> IA P2
-    </div>
+  <strong>Controles</strong> · P1: W/S · P2: ↑/↓ ·
+  <kbd>P</kbd> Pausa · <kbd>R</kbd> Reiniciar · <kbd>A</kbd> IA P2
+  · <button id="modsBtn" class="btn">Mods</button>
+</div>
+
+<!-- Panel Mods -->
+<div id="modsPanel" class="mods hidden">
+  <label><input type="checkbox" id="modSpeed"> 1) La bola gana +10% de velocidad en cada bote</label>
+  <label><input type="checkbox" id="modSize"> 2) La bola cambia ±5% de tamaño al azar en cada bote</label>
+  <label><input type="checkbox" id="modTwo"> 3) Jugar con dos pelotas</label>
+</div>
+
     <div class="status" id="status"></div>
   </div>
 
