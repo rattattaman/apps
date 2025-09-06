@@ -24,7 +24,7 @@ const STATE = {
   t0: performance.now(),
   mods: {
     speedOnBounce: false,  // +10% vel en cada bote
-    sizeRandom: false,     // ±5% tamaño en cada bote
+    sizeRandom: false,     // ±25% tamaño en cada bote
     twoBalls: false        // dos pelotas
   }
 };
@@ -227,9 +227,9 @@ function onBounce(b) {
     b.vy = Math.sin(ang) * capped;
   }
 
-  // MOD 2: ±5% tamaño al azar en cada bote
+  // MOD 2: ±25% tamaño al azar en cada bote
   if (STATE.mods.sizeRandom) {
-    const factor = Math.random() < 0.5 ? 0.95 : 1.05;
+    const factor = Math.random() < 2.5 ? 0.75 : 1.25;
     b.r = Math.max(4, Math.min(30, b.r * factor));
   }
 }
