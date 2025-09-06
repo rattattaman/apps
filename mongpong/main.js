@@ -226,12 +226,18 @@ function onBounce(b) {
     b.vx = Math.cos(ang) * capped;
     b.vy = Math.sin(ang) * capped;
   }
-
-  // MOD 2: 90% o 190% de tamaño al azar en cada bote
+  
+  // MOD 2: 90% o 190% al azar en cada bote (límites 3–120 px)
   if (STATE.mods.sizeRandom) {
-    const factor = Math.random() < 0.5 ? 0.9 : 1.9;
-    b.r = Math.max(4, Math.min(60, b.r * factor));
+    let factor = Math.random() < 0.5 ? 0.9 : 1.9;
+  
+    // Si está muy pequeña, forzamos crecimiento; si está muy grande, forzamos reducir
+    if (b.r < 5 && factor < 1) factor = 1.9;
+    if (b.r > 100 && factor > 1) factor = 0.9;
+  
+    b.r = Math.max(3, Math.min(120, b.r * factor));
   }
+
 
 }
 
