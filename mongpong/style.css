@@ -52,3 +52,21 @@ kbd {
 }
 .mods label { display: block; }
 .hidden { display: none; }
+
+/* Celebración */
+.celebrate {
+  position: fixed; inset: 0; display: grid; place-items: center;
+  background: rgba(0,0,0,.35); z-index: 9999; animation: fadeOut 3s forwards;
+}
+.celebrate h1 {
+  font-size: clamp(28px, 6vw, 72px);
+  background: linear-gradient(90deg,#fff,#8cf,#ff9,#fc9,#9f9);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 2px 20px rgba(255,255,255,.2);
+}
+@keyframes fadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
