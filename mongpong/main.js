@@ -4,29 +4,37 @@ const ctx = canvas.getContext('2d', { alpha: false });
 
 const scoreL = document.getElementById('scoreL');
 const scoreR = document.getElementById('scoreR');
+const bounceL = document.getElementById('bounceL');
+const bounceR = document.getElementById('bounceR');
 const statusEl = document.getElementById('status');
+const partyEl  = document.getElementById('party');
 
 const modsBtn = document.getElementById('modsBtn');
 const modsPanel = document.getElementById('modsPanel');
 const modSpeedEl = document.getElementById('modSpeed');
 const modSizeEl  = document.getElementById('modSize');
 const modTwoEl   = document.getElementById('modTwo');
+const modGiantEl = document.getElementById('modGiant');
+const modMirrorEl= document.getElementById('modMirror');
 
 const STATE = {
   w: 0, h: 0,
   paused: false,
   aiRight: true,
   targetScore: 7,
-  left: { y: 0, vy: 0, score: 0 },
-  right:{ y: 0, vy: 0, score: 0 },
+  left: { y: 0, vy: 0, score: 0, bounces: 0 },
+  right:{ y: 0, vy: 0, score: 0, bounces: 0 },
   balls: [], // ahora soporta varias pelotas
   keys: { w:false, s:false, up:false, down:false },
   t0: performance.now(),
   mods: {
     speedOnBounce: false,  // +10% vel en cada bote
     sizeRandom: false,     // ±90% tamaño en cada bote
-    twoBalls: false        // dos pelotas
-  }
+    twoBalls: false,       // dos pelotas
+    giantAI: false,        // IA ocupa toda la portería
+    mirror: false          // controles invertidos
+  },
+  party: false
 };
 
 const PAD = { w: 12, h: 120, margin: 20, speed: 520 };
@@ -67,6 +75,7 @@ function resize() {
 function centerEntities() {
   STATE.left.y  = (STATE.h - PAD.h) / 2;
   STATE.right.y = (STATE.h - PAD.h) / 2;
+  if (STATE.mods.giantAI) STATE.right.y = 0;
 
   // Re-crear pelotas según el mod activo
   STATE.balls = [ createBall(Math.random() < 0.5 ? -1 : 1) ];
@@ -106,7 +115,8 @@ function draw() {
   // palas
   ctx.fillStyle = '#eaf2ff';
   ctx.fillRect(PAD.margin, STATE.left.y, PAD.w, PAD.h);
-  ctx.fillRect(STATE.w - PAD.margin - PAD.w, STATE.right.y, PAD.w, PAD.h);
+  const rightH = STATE.mods.giantAI ? STATE.h : PAD.h;
+  ctx.fillRect(STATE.w - PAD.margin - PAD.w, STATE.right.y, PAD.w, rightH);
 
   // pelotas
   for (const b of STATE.balls) {
@@ -118,7 +128,7 @@ function draw() {
   // sombra sutil
   ctx.globalAlpha = 0.08;
   ctx.fillRect(PAD.margin+2, STATE.left.y+2, PAD.w, PAD.h);
-  ctx.fillRect(STATE.w - PAD.margin - PAD.w + 2, STATE.right.y + 2, PAD.w, PAD.h);
+  ctx.fillRect(STATE.w - PAD.margin - PAD.w + 2, STATE.right.y + 2, PAD.w, rightH);
   ctx.globalAlpha = 1;
 }
 
@@ -132,21 +142,35 @@ function update(dt) {
 
   // P2 o IA
   STATE.right.vy = 0;
-  if (STATE.aiRight) {
-    const target = avgBallY() - PAD.h/2;
-    const diff = target - STATE.right.y;
-    const max = PAD.speed * 0.85;
-    STATE.right.vy = Math.max(-max, Math.min(max, diff * 6));
+  if (!STATE.mods.giantAI) {
+    if (STATE.aiRight) {
+      const target = avgBallY() - PAD.h/2;
+      const diff = target - STATE.right.y;
+      const max = PAD.speed * 0.85;
+      STATE.right.vy = Math.max(-max, Math.min(max, diff * 6));
+    } else {
+      if (STATE.keys.up)   STATE.right.vy -= PAD.speed;
+      if (STATE.keys.down) STATE.right.vy += PAD.speed;
+    }
   } else {
-    if (STATE.keys.up)   STATE.right.vy -= PAD.speed;
-    if (STATE.keys.down) STATE.right.vy += PAD.speed;
+    STATE.right.y = 0;
+  }
+
+  // modo espejo
+  if (STATE.mods.mirror) {
+    STATE.left.vy *= -1;
+    if (!STATE.aiRight) STATE.right.vy *= -1;
   }
 
   // mover palas
   STATE.left.y  += STATE.left.vy * dt;
-  STATE.right.y += STATE.right.vy * dt;
   STATE.left.y  = Math.max(0, Math.min(STATE.h - PAD.h, STATE.left.y));
-  STATE.right.y = Math.max(0, Math.min(STATE.h - PAD.h, STATE.right.y));
+  if (!STATE.mods.giantAI) {
+    STATE.right.y += STATE.right.vy * dt;
+    STATE.right.y = Math.max(0, Math.min(STATE.h - PAD.h, STATE.right.y));
+  } else {
+    STATE.right.y = 0;
+  }
 
   // actualizar pelotas
   for (const b of STATE.balls) {
@@ -164,13 +188,13 @@ function update(dt) {
     // colisión paleta izquierda
     const lpX = PAD.margin, lpY = STATE.left.y;
     if (b.x - b.r <= lpX + PAD.w && b.x > lpX && b.y > lpY && b.y < lpY + PAD.h && b.vx < 0) {
-      collideWithPaddle(b, 'left', lpY);
+      collideWithPaddle(b, 'left', lpY, PAD.h);
     }
 
     // colisión paleta derecha
-    const rpX = STATE.w - PAD.margin - PAD.w, rpY = STATE.right.y;
-    if (b.x + b.r >= rpX && b.x < rpX + PAD.w && b.y > rpY && b.y < rpY + PAD.h && b.vx > 0) {
-      collideWithPaddle(b, 'right', rpY);
+    const rpX = STATE.w - PAD.margin - PAD.w, rpY = STATE.right.y, rpH = STATE.mods.giantAI ? STATE.h : PAD.h;
+    if (b.x + b.r >= rpX && b.x < rpX + PAD.w && b.y > rpY && b.y < rpY + rpH && b.vx > 0) {
+      collideWithPaddle(b, 'right', rpY, rpH);
     }
   }
 
@@ -198,8 +222,8 @@ function avgBallY() {
   return s / STATE.balls.length;
 }
 
-function collideWithPaddle(b, side, padY) {
-  const rel = (b.y - (padY + PAD.h/2)) / (PAD.h/2); // -1..1
+function collideWithPaddle(b, side, padY, padH = PAD.h) {
+  const rel = (b.y - (padY + padH/2)) / (padH/2); // -1..1
   const maxBounce = Math.PI/3; // 60º
   const ang = rel * maxBounce;
   const speed = Math.hypot(b.vx, b.vy) * 1.04; // leve aceleración por choque
@@ -211,6 +235,11 @@ function collideWithPaddle(b, side, padY) {
   // separa de la pala
   if (side === 'left') b.x = PAD.margin + PAD.w + b.r + 0.1;
   else b.x = STATE.w - PAD.margin - PAD.w - b.r - 0.1;
+
+  if (side === 'left') STATE.left.bounces++;
+  else STATE.right.bounces++;
+  updateBounceboard();
+  checkParty();
 
   onBounce(b);
   blip(340);
@@ -256,6 +285,17 @@ function updateScoreboard() {
   scoreR.textContent = STATE.right.score;
 }
 
+function updateBounceboard() {
+  bounceL.textContent = STATE.left.bounces;
+  bounceR.textContent = STATE.right.bounces;
+}
+
+function checkParty() {
+  if (!STATE.party && STATE.left.bounces >= 50) {
+    partyEl.classList.remove('hidden');
+    STATE.party = true;
+  }
+}
 function checkWin() {
   if (STATE.left.score >= STATE.targetScore || STATE.right.score >= STATE.targetScore) {
     const winner = STATE.left.score > STATE.right.score ? 'Jugador 1' : (STATE.aiRight ? 'IA' : 'Jugador 2');
@@ -302,6 +342,20 @@ modTwoEl.addEventListener('change', (e) => {
   }
 });
 
+modGiantEl.addEventListener('change', (e) => {
+  STATE.mods.giantAI = e.target.checked;
+  if (STATE.mods.giantAI) {
+    STATE.aiRight = true;
+    STATE.right.y = 0;
+  } else {
+    STATE.right.y = (STATE.h - PAD.h) / 2;
+  }
+});
+
+modMirrorEl.addEventListener('change', (e) => {
+  STATE.mods.mirror = e.target.checked;
+});
+
 // Controles teclado
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
@@ -319,7 +373,9 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.key === 'r' || e.key === 'R') {
     STATE.left.score = 0; STATE.right.score = 0; updateScoreboard();
+    STATE.left.bounces = 0; STATE.right.bounces = 0; updateBounceboard();
     STATE.paused = false; statusEl.textContent = '';
+    STATE.party = false; partyEl.classList.add('hidden');
     centerEntities();
   }
 });
@@ -335,4 +391,6 @@ window.addEventListener('resize', resize);
 
 // Init
 resize();
+updateScoreboard();
+updateBounceboard();
 requestAnimationFrame(loop);

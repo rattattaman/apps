@@ -9,11 +9,18 @@
 <body>
   <canvas id="game"></canvas>
 
+  <div id="party" class="hidden">🎉 Fiesta! 50 botes 🎉</div>
+
   <div class="hud">
     <div class="score">
       <span id="scoreL">0</span>
       <span class="dash">—</span>
       <span id="scoreR">0</span>
+    </div>
+    <div class="bounces">
+      Botes: <span id="bounceL">0</span>
+      <span class="dash">—</span>
+      <span id="bounceR">0</span>
     </div>
     <div class="controls">
   <strong>Controles</strong> · P1: W/S · P2: ↑/↓ ·
@@ -26,6 +33,8 @@
   <label><input type="checkbox" id="modSpeed"> 1) La bola gana +10% de velocidad en cada bote</label>
   <label><input type="checkbox" id="modSize"> 2) La bola cambia ±90% de tamaño al azar en cada bote</label>
   <label><input type="checkbox" id="modTwo"> 3) Jugar con dos pelotas</label>
+  <label><input type="checkbox" id="modGiant"> 4) IA gigante ocupa toda la portería</label>
+  <label><input type="checkbox" id="modMirror"> 5) Modo espejo: controles invertidos</label>
 </div>
 
     <div class="status" id="status"></div>
