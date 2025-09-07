@@ -16,6 +16,23 @@ html, body {
   box-shadow: 0 10px 40px rgba(0,0,0,.45), inset 0 0 40px rgba(255,255,255,.03);
   border-radius: 14px;
 }
+
+#party {
+  position: absolute;
+  top: 40%;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: clamp(32px, 6vw, 72px);
+  animation: pop 1s ease-out;
+  pointer-events: none;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
 .hud {
   width: min(100vw, 1200px);
   margin: 10px auto; text-align: center;
@@ -30,6 +47,11 @@ kbd {
   background: #0f1524; border: 1px solid #263149; padding: 2px 6px; border-radius: 6px; font-family: inherit;
 }
 .dash { margin: 0 10px; opacity: .7; }
+
+.bounces {
+  font-weight: 600; letter-spacing: .04em; font-size: 18px;
+  margin-top: 4px;
+}
 
 .btn {
   background: #121a2b; border: 1px solid #2a3652; padding: 4px 10px; border-radius: 8px;
