@@ -89,19 +89,7 @@ function centerEntities() {
   }
 }
 
-function blip(freq = 260) {
-  try {
-    if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = 'square';
-    o.frequency.value = freq;
-    g.gain.value = 0.02;
-    o.connect(g).connect(audioCtx.destination);
-    o.start();
-    setTimeout(() => { o.stop(); o.disconnect(); g.disconnect(); }, 60);
-  } catch {}
-}
+function blip() {}
 
 function draw() {
   // red central
