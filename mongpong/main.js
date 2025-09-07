@@ -15,6 +15,9 @@ const modSizeEl  = document.getElementById('modSize');
 const modTwoEl   = document.getElementById('modTwo');
 const modWallEl  = document.getElementById('modWall');
 const modMirrorEl= document.getElementById('modMirror');
+const modSpinEl   = document.getElementById('modSpin');
+const modGravityEl= document.getElementById('modGravity');
+const modTrailEl  = document.getElementById('modTrail');
 
 const STATE = {
   w: 0, h: 0,
@@ -32,6 +35,10 @@ const STATE = {
     twoBalls: false,        // dos pelotas
     wallMode: false,        // pala derecha ocupa toda la portería (pared)
     mirrorControls: false   // controles invertidos
+    spinOnHit: false,      // 6) añadir efecto de corte al golpear
+    gravity: false,        // 7) gravedad hacia abajo
+    trail: false           // 8) estela visual
+
   },
   sessionBounces: 0,
   celebrating: false
@@ -48,7 +55,7 @@ function padH(side) {
 
 function createBall(dirX = 1) {
   const r = 9;
-  const speed = 420; // un poco más vivo
+  const speed = 420; // vivo
   const angle = (Math.random() * 0.6 - 0.3);
   return {
     x: STATE.w / 2,
@@ -56,9 +63,11 @@ function createBall(dirX = 1) {
     vx: Math.cos(angle) * speed * dirX,
     vy: Math.sin(angle) * speed,
     r,
-    baseSpeed: speed
+    baseSpeed: speed,
+    trail: [] // para el mod de estela
   };
 }
+
 
 function resize() {
   const cssW = canvas.clientWidth;
@@ -131,8 +140,21 @@ function draw() {
   ctx.fillRect(PAD.margin, STATE.left.y, PAD.w, hL);
   ctx.fillRect(STATE.w - PAD.margin - PAD.w, STATE.right.y, PAD.w, hR);
 
-  // pelotas
+  // pelotas + estela
   for (const b of STATE.balls) {
+    if (STATE.mods.trail && b.trail.length > 1) {
+      ctx.save();
+      for (let i = 0; i < b.trail.length; i++) {
+        const t = b.trail[i];
+        const alpha = i / b.trail.length * 0.35; // de tenue a menos tenue
+        ctx.fillStyle = `rgba(234,242,255,${alpha})`;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, Math.max(2, t.r * 0.9), 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.fillStyle = '#eaf2ff';
     ctx.beginPath();
     ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
     ctx.fill();
@@ -183,6 +205,20 @@ function update(dt) {
   for (const b of STATE.balls) {
     b.x += b.vx * dt;
     b.y += b.vy * dt;
+    // 7) Gravedad
+    if (STATE.mods.gravity) {
+    const G = 900; // px/s^2 (ajustable)
+    b.vy += G * dt;
+}
+
+// 8) Estela (guardamos historial de posiciones)
+if (STATE.mods.trail) {
+  b.trail.push({x: b.x, y: b.y, r: b.r});
+  if (b.trail.length > 14) b.trail.shift();
+} else {
+  b.trail.length = 0;
+}
+
 
     // rebote vertical
     if (b.y - b.r <= 0 && b.vy < 0) {
@@ -238,6 +274,18 @@ function collideWithPaddle(b, side, padY, hPad) {
 
   b.vx = Math.cos(ang) * speed * dir;
   b.vy = Math.sin(ang) * speed;
+  // 6) Spin: añade componente vertical según velocidad de la pala
+if (STATE.mods.spinOnHit) {
+  const padVy = (side === 'left') ? STATE.left.vy : STATE.right.vy;
+  b.vy += padVy * 0.15; // factor de corte (ajustable)
+  // Cap velocidad total para que no explote
+  const v = Math.hypot(b.vx, b.vy);
+  const vmax = b.baseSpeed * 3.2;
+  if (v > vmax) {
+    const k = vmax / v;
+    b.vx *= k; b.vy *= k;
+  }
+}
 
   // separa de la pala
   if (side === 'left') b.x = PAD.margin + PAD.w + b.r + 0.1;
@@ -354,6 +402,16 @@ modWallEl.addEventListener('change', (e) => {
 modMirrorEl.addEventListener('change', (e) => {
   STATE.mods.mirrorControls = e.target.checked;
   statusEl.textContent = STATE.mods.mirrorControls ? '🪞 Controles invertidos' : '';
+});
+
+modSpinEl.addEventListener('change', (e) => {
+  STATE.mods.spinOnHit = e.target.checked;
+});
+modGravityEl.addEventListener('change', (e) => {
+  STATE.mods.gravity = e.target.checked;
+});
+modTrailEl.addEventListener('change', (e) => {
+  STATE.mods.trail = e.target.checked;
 });
 
 // Controles teclado
