@@ -89,7 +89,28 @@ function centerEntities() {
   }
 }
 
-function blip() {}
+// Sonidito generativo (WebAudio) — versión segura
+let audioCtxGlobal = null;
+function blip(freq = 260) {
+  try {
+    if (!audioCtxGlobal) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtxGlobal = new AC();
+    }
+    const o = audioCtxGlobal.createOscillator();
+    const g = audioCtxGlobal.createGain();
+    o.type = 'square';
+    o.frequency.value = freq;
+    g.gain.value = 0.03; // un poco más alto
+    g.connect(audioCtxGlobal.destination);
+    o.connect(g);
+    o.start();
+    o.stop(audioCtxGlobal.currentTime + 0.08);
+  } catch (e) {
+    console.warn("Audio desactivado:", e.message);
+  }
+}
+
 
 function draw() {
   // red central
