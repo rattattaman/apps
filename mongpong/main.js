@@ -296,7 +296,6 @@ function checkParty() {
     STATE.party = true;
   }
 }
-
 function checkWin() {
   if (STATE.left.score >= STATE.targetScore || STATE.right.score >= STATE.targetScore) {
     const winner = STATE.left.score > STATE.right.score ? 'Jugador 1' : (STATE.aiRight ? 'IA' : 'Jugador 2');
