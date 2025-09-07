@@ -31,6 +31,11 @@ kbd {
 }
 .dash { margin: 0 10px; opacity: .7; }
 
+.bounces {
+  font-weight: 600; letter-spacing: .04em; font-size: 18px;
+  margin-top: 4px;
+}
+
 .btn {
   background: #121a2b; border: 1px solid #2a3652; padding: 4px 10px; border-radius: 8px;
   color: #eaf2ff; cursor: pointer; font: inherit;
