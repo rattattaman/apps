@@ -4,6 +4,8 @@ const ctx = canvas.getContext('2d', { alpha: false });
 
 const scoreL = document.getElementById('scoreL');
 const scoreR = document.getElementById('scoreR');
+const bounceL = document.getElementById('bounceL');
+const bounceR = document.getElementById('bounceR');
 const statusEl = document.getElementById('status');
 
 const modsBtn = document.getElementById('modsBtn');
@@ -17,8 +19,8 @@ const STATE = {
   paused: false,
   aiRight: true,
   targetScore: 7,
-  left: { y: 0, vy: 0, score: 0 },
-  right:{ y: 0, vy: 0, score: 0 },
+  left: { y: 0, vy: 0, score: 0, bounces: 0 },
+  right:{ y: 0, vy: 0, score: 0, bounces: 0 },
   balls: [], // ahora soporta varias pelotas
   keys: { w:false, s:false, up:false, down:false },
   t0: performance.now(),
@@ -212,6 +214,10 @@ function collideWithPaddle(b, side, padY) {
   if (side === 'left') b.x = PAD.margin + PAD.w + b.r + 0.1;
   else b.x = STATE.w - PAD.margin - PAD.w - b.r - 0.1;
 
+  if (side === 'left') STATE.left.bounces++;
+  else STATE.right.bounces++;
+  updateBounceboard();
+
   onBounce(b);
   blip(340);
 }
@@ -254,6 +260,11 @@ function resetBallInstance(b, dirX = 1) {
 function updateScoreboard() {
   scoreL.textContent = STATE.left.score;
   scoreR.textContent = STATE.right.score;
+}
+
+function updateBounceboard() {
+  bounceL.textContent = STATE.left.bounces;
+  bounceR.textContent = STATE.right.bounces;
 }
 
 function checkWin() {
@@ -319,6 +330,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.key === 'r' || e.key === 'R') {
     STATE.left.score = 0; STATE.right.score = 0; updateScoreboard();
+    STATE.left.bounces = 0; STATE.right.bounces = 0; updateBounceboard();
     STATE.paused = false; statusEl.textContent = '';
     centerEntities();
   }
@@ -335,4 +347,6 @@ window.addEventListener('resize', resize);
 
 // Init
 resize();
+updateScoreboard();
+updateBounceboard();
 requestAnimationFrame(loop);
