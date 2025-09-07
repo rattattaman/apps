@@ -34,7 +34,7 @@ const STATE = {
     sizeRandom: false,      // 90% o 190% tamaño al azar en cada bote
     twoBalls: false,        // dos pelotas
     wallMode: false,        // pala derecha ocupa toda la portería (pared)
-    mirrorControls: false   // controles invertidos
+    mirrorControls: false,   // controles invertidos
     spinOnHit: false,      // 6) añadir efecto de corte al golpear
     gravity: false,        // 7) gravedad hacia abajo
     trail: false           // 8) estela visual
