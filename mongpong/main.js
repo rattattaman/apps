@@ -9,6 +9,7 @@ const bounceR = document.getElementById('bounceR');
 const statusEl = document.getElementById('status');
 
 const modsBtn = document.getElementById('modsBtn');
+const fsBtn   = document.getElementById('fsBtn');
 const modsPanel = document.getElementById('modsPanel');
 const modSpeedEl = document.getElementById('modSpeed');
 const modSizeEl  = document.getElementById('modSize');
@@ -18,17 +19,23 @@ const modMirrorEl= document.getElementById('modMirror');
 const modSpinEl   = document.getElementById('modSpin');
 const modGravityEl= document.getElementById('modGravity');
 const modTrailEl  = document.getElementById('modTrail');
+const modTeleportEl = document.getElementById('modTeleport');
+const aiDiffEl    = document.getElementById('aiDiff');
+const aiDiffLabel = document.getElementById('aiDiffLabel');
 
 const STATE = {
   w: 0, h: 0,
   paused: false,
   aiRight: true,
+  aiDifficulty: 1.0,
   targetScore: 7,
   left:  { y: 0, vy: 0, score: 0, bounces: 0 },
   right: { y: 0, vy: 0, score: 0, bounces: 0 },
   balls: [],
   keys: { w:false, s:false, up:false, down:false },
   t0: performance.now(),
+  audioMuted: false,
+  touch: { leftId: null, rightId: null, leftY: null, rightY: null },
   mods: {
     speedOnBounce: false,   // +10% vel en cada bote
     sizeRandom: false,      // 90% o 190% tamaño al azar en cada bote
@@ -37,7 +44,8 @@ const STATE = {
     mirrorControls: false,   // controles invertidos
     spinOnHit: false,      // 6) añadir efecto de corte al golpear
     gravity: false,        // 7) gravedad hacia abajo
-    trail: false           // 8) estela visual
+    trail: false,          // 8) estela visual
+    teleportOnWall: false  // 9) teletransporte en rebote de pared
 
   },
   sessionBounces: 0,
@@ -85,6 +93,7 @@ function resize() {
   NET.gap   = 14;
 
   centerEntities();
+  saveSettings();
 }
 
 function centerEntities() {
@@ -101,6 +110,7 @@ function centerEntities() {
 // Sonidito generativo (WebAudio) — versión segura
 let audioCtxGlobal = null;
 function blip(freq = 260) {
+  if (STATE.audioMuted) return;
   try {
     if (!audioCtxGlobal) {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -184,8 +194,9 @@ function update(dt) {
   if (STATE.aiRight) {
     const target = avgBallY() - hR/2;
     const diff = target - STATE.right.y;
-    const max = PAD.speed * (STATE.mods.wallMode ? 1.0 : 0.85);
-    rightVy = Math.max(-max, Math.min(max, diff * 6));
+    const max = PAD.speed * (STATE.mods.wallMode ? 1.0 : 0.85) * STATE.aiDifficulty;
+    const response = 6 * (0.85 + (STATE.aiDifficulty - 1) * 0.5);
+    rightVy = Math.max(-max, Math.min(max, diff * response));
   } else {
     if (STATE.keys.up)   rightVy -= PAD.speed;
     if (STATE.keys.down) rightVy += PAD.speed;
@@ -196,6 +207,14 @@ function update(dt) {
   // mover palas
   STATE.left.y  += STATE.left.vy * dt;
   STATE.right.y += STATE.right.vy * dt;
+
+  // Control por tacto (si hay objetivo de dedo, domina)
+  if (STATE.touch.leftY != null) {
+    STATE.left.y = Math.max(0, Math.min(STATE.h - hL, STATE.touch.leftY - hL/2));
+  }
+  if (!STATE.aiRight && STATE.touch.rightY != null) {
+    STATE.right.y = Math.max(0, Math.min(STATE.h - hR, STATE.touch.rightY - hR/2));
+  }
 
   // límites
   STATE.left.y  = Math.max(0, Math.min(STATE.h - hL, STATE.left.y));
@@ -223,9 +242,11 @@ if (STATE.mods.trail) {
     // rebote vertical
     if (b.y - b.r <= 0 && b.vy < 0) {
       b.y = b.r; b.vy *= -1; onBounce(b); blip();
+      if (STATE.mods.teleportOnWall) teleportAwayFromPaddles(b);
     }
     if (b.y + b.r >= STATE.h && b.vy > 0) {
       b.y = STATE.h - b.r; b.vy *= -1; onBounce(b); blip();
+      if (STATE.mods.teleportOnWall) teleportAwayFromPaddles(b);
     }
 
     // colisión paleta izquierda
@@ -324,6 +345,41 @@ function onBounce(b) {
   }
 }
 
+// Teletransporta la pelota a una posición aleatoria que no esté
+// demasiado cerca de las raquetas ni de los bordes superior/inferior.
+function teleportAwayFromPaddles(b) {
+  const safeFromTop = Math.max(20, b.r + 10);
+  const safeFromBottom = Math.max(20, b.r + 10);
+  const xLeftEdge = PAD.margin + PAD.w;
+  const xRightEdge = STATE.w - PAD.margin - PAD.w;
+  const safePad = 120; // distancia mínima horizontal respecto a cada raqueta
+
+  // Rango horizontal permitido: lejos de ambas palas
+  const minX = xLeftEdge + safePad;
+  const maxX = xRightEdge - safePad;
+  if (maxX <= minX) return; // campo estrecho: no teletransportar
+
+  // Muestrea algunas posiciones hasta encontrar una válida
+  for (let i = 0; i < 20; i++) {
+    const x = Math.random() * (maxX - minX) + minX;
+    const y = Math.random() * (STATE.h - safeFromTop - safeFromBottom) + safeFromTop;
+    // validar distancia a las palas en vertical también (centro vs rangos)
+    const hL = padH('left');
+    const hR = padH('right');
+    const leftRect = { x: PAD.margin, y: STATE.left.y, w: PAD.w, h: hL };
+    const rightRect= { x: STATE.w - PAD.margin - PAD.w, y: STATE.right.y, w: PAD.w, h: hR };
+
+    const farFromLeft = (x > leftRect.x + leftRect.w + 60) || (y < leftRect.y - 40) || (y > leftRect.y + leftRect.h + 40);
+    const farFromRight= (x < rightRect.x - 60) || (y < rightRect.y - 40) || (y > rightRect.y + rightRect.h + 40);
+    if (farFromLeft && farFromRight) {
+      b.x = x; b.y = y;
+      return;
+    }
+  }
+  // en último recurso, centra
+  b.x = STATE.w / 2; b.y = STATE.h / 2;
+}
+
 function resetBallInstance(b, dirX = 1) {
   b.x = STATE.w / 2;
   b.y = STATE.h / 2;
@@ -363,17 +419,96 @@ function loop(t) {
   requestAnimationFrame(loop);
 }
 
+// Arregla textos con mala codificación presentes en el HTML original
+function fixEncodingArtifacts() {
+  try {
+    document.querySelectorAll('.dash').forEach(el => { el.textContent = '—'; });
+
+    const sizeParent = document.getElementById('modSize')?.parentElement;
+    if (sizeParent) {
+      sizeParent.innerHTML = '<input type="checkbox" id="modSize"> 2) La bola cambia ±90% de tamaño al azar en cada bote';
+      const sizeEl = document.getElementById('modSize');
+      sizeEl.addEventListener('change', (e) => { STATE.mods.sizeRandom = e.target.checked; });
+    }
+
+    const spinParent = document.getElementById('modSpin')?.parentElement;
+    if (spinParent) {
+      spinParent.innerHTML = '<input type="checkbox" id="modSpin"> 6) Spin: la pala "corta" la pelota al golpear';
+      const spinEl = document.getElementById('modSpin');
+      spinEl.addEventListener('change', (e) => { STATE.mods.spinOnHit = e.target.checked; });
+    }
+  } catch {}
+}
+
+// Utilidades y persistencia
+function fixEncodingArtifactsSafe() { try { document.querySelectorAll('.dash').forEach(el => { el.textContent = '-'; }); } catch {} }
+
+const LS_KEY = 'mongpong_settings_v1';
+function saveSettings() {
+  try {
+    const data = { mods: { ...STATE.mods }, aiRight: STATE.aiRight, audioMuted: STATE.audioMuted, aiDifficulty: STATE.aiDifficulty };
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  } catch {}
+}
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.mods) Object.assign(STATE.mods, data.mods);
+    if (typeof data.aiRight === 'boolean') STATE.aiRight = data.aiRight;
+    if (typeof data.audioMuted === 'boolean') STATE.audioMuted = data.audioMuted;
+    if (typeof data.aiDifficulty === 'number') STATE.aiDifficulty = data.aiDifficulty;
+    // UI
+    if (modSpeedEl)   modSpeedEl.checked   = !!STATE.mods.speedOnBounce;
+    if (modSizeEl)    modSizeEl.checked    = !!STATE.mods.sizeRandom;
+    if (modTwoEl)     modTwoEl.checked     = !!STATE.mods.twoBalls;
+    if (modWallEl)    modWallEl.checked    = !!STATE.mods.wallMode;
+    if (modMirrorEl)  modMirrorEl.checked  = !!STATE.mods.mirrorControls;
+    if (modSpinEl)    modSpinEl.checked    = !!STATE.mods.spinOnHit;
+    if (modGravityEl) modGravityEl.checked = !!STATE.mods.gravity;
+    if (modTrailEl)   modTrailEl.checked   = !!STATE.mods.trail;
+    if (modTeleportEl) modTeleportEl.checked = !!STATE.mods.teleportOnWall;
+    if (aiDiffEl)     aiDiffEl.value = String(STATE.aiDifficulty);
+    updateAiLabel();
+    centerEntities();
+  } catch {}
+}
+function updateAiLabel() {
+  if (!aiDiffLabel || !aiDiffEl) return;
+  const v = parseFloat(aiDiffEl.value);
+  let txt = 'Normal';
+  if (v <= 0.7) txt = 'Fácil';
+  else if (v >= 1.4) txt = 'Difícil';
+  aiDiffLabel.textContent = txt + ` (${v.toFixed(1)}x)`;
+}
+
 // Eventos UI
+fixEncodingArtifactsSafe();
 modsBtn.addEventListener('click', () => {
   modsPanel.classList.toggle('hidden');
 });
 
+if (fsBtn) {
+  fsBtn.addEventListener('click', async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {}
+  });
+}
+
 modSpeedEl.addEventListener('change', (e) => {
   STATE.mods.speedOnBounce = e.target.checked;
+  saveSettings();
 });
 
 modSizeEl.addEventListener('change', (e) => {
   STATE.mods.sizeRandom = e.target.checked;
+  saveSettings();
 });
 
 modTwoEl.addEventListener('change', (e) => {
@@ -386,6 +521,7 @@ modTwoEl.addEventListener('change', (e) => {
   } else {
     if (STATE.balls.length > 1) STATE.balls.splice(1);
   }
+  saveSettings();
 });
 
 modWallEl.addEventListener('change', (e) => {
@@ -414,6 +550,22 @@ modTrailEl.addEventListener('change', (e) => {
   STATE.mods.trail = e.target.checked;
 });
 
+if (modTeleportEl) {
+  modTeleportEl.addEventListener('change', (e) => {
+    STATE.mods.teleportOnWall = e.target.checked;
+    saveSettings();
+  });
+}
+
+// Control deslizante de dificultad de IA
+if (aiDiffEl) {
+  aiDiffEl.addEventListener('input', (e) => {
+    STATE.aiDifficulty = parseFloat(e.target.value);
+    updateAiLabel();
+    saveSettings();
+  });
+}
+
 // Controles teclado
 window.addEventListener('keydown', (e) => {
   if (e.repeat) return;
@@ -421,6 +573,10 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 's' || e.key === 'S') STATE.keys.s = true;
   if (e.key === 'ArrowUp') STATE.keys.up = true;
   if (e.key === 'ArrowDown') STATE.keys.down = true;
+  if (e.key === 'm' || e.key === 'M') {
+    STATE.audioMuted = !STATE.audioMuted;
+    statusEl.textContent = STATE.audioMuted ? '🔈 Sonido silenciado' : '';
+  }
   if (e.key === 'p' || e.key === 'P') {
     STATE.paused = !STATE.paused;
     statusEl.textContent = STATE.paused ? '⏸ Pausa (P para reanudar)' : '';
@@ -442,15 +598,112 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 's' || e.key === 'S') STATE.keys.s = false;
   if (e.key === 'ArrowUp') STATE.keys.up = false;
   if (e.key === 'ArrowDown') STATE.keys.down = false;
+  if (e.key === 'm' || e.key === 'M' || e.key === 'a' || e.key === 'A') saveSettings();
 });
 
 window.addEventListener('resize', resize);
 
 // Init
+loadSettings();
+updateAiLabel();
 resize();
 updateScoreboard();
 updateBounceboard();
 requestAnimationFrame(loop);
+
+// Controles táctiles (Pointer Events)
+function canvasPointFromEvent(e){
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  return { x, y };
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  const { x, y } = canvasPointFromEvent(e);
+  const leftSide = x < STATE.w / 2;
+  if (leftSide) {
+    STATE.touch.leftId = e.pointerId;
+    STATE.touch.leftY = y;
+  } else if (!STATE.aiRight) {
+    STATE.touch.rightId = e.pointerId;
+    STATE.touch.rightY = y;
+  }
+  try { canvas.setPointerCapture(e.pointerId); } catch {}
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (STATE.touch.leftId !== e.pointerId && STATE.touch.rightId !== e.pointerId) return;
+  const { y } = canvasPointFromEvent(e);
+  if (STATE.touch.leftId === e.pointerId) STATE.touch.leftY = y;
+  if (STATE.touch.rightId === e.pointerId) STATE.touch.rightY = y;
+});
+
+function releasePointer(e){
+  if (STATE.touch.leftId === e.pointerId) {
+    STATE.touch.leftId = null; STATE.touch.leftY = null;
+  }
+  if (STATE.touch.rightId === e.pointerId) {
+    STATE.touch.rightId = null; STATE.touch.rightY = null;
+  }
+  try { canvas.releasePointerCapture(e.pointerId); } catch {}
+}
+canvas.addEventListener('pointerup', releasePointer);
+canvas.addEventListener('pointercancel', releasePointer);
+canvas.addEventListener('pointerleave', releasePointer);
+
+// UI dinámica: botón mute y pista táctil junto a controles
+(function setupExtraUI(){
+  try {
+    const controls = document.querySelector('.controls');
+    if (controls && !document.getElementById('touchHint')) {
+      const hint = document.createElement('span');
+      hint.id = 'touchHint';
+      hint.style.marginLeft = '8px';
+      hint.style.opacity = '0.85';
+      const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+      if (isTouch) hint.textContent = '· Táctil: arrastra en cada lado';
+      controls.appendChild(hint);
+    }
+  } catch {}
+
+  try {
+    const panel = document.getElementById('modsPanel');
+    if (panel && !document.getElementById('muteBtn')) {
+      const wrap = document.createElement('div');
+      wrap.style.marginTop = '8px';
+      const btn = document.createElement('button');
+      btn.id = 'muteBtn';
+      btn.className = 'btn';
+      btn.setAttribute('aria-pressed', 'false');
+      btn.textContent = '🔊 Sonido';
+      btn.addEventListener('click', () => {
+        STATE.audioMuted = !STATE.audioMuted;
+        btn.setAttribute('aria-pressed', String(STATE.audioMuted));
+        btn.textContent = STATE.audioMuted ? '🔈 Silenciado' : '🔊 Sonido';
+      });
+      wrap.appendChild(btn);
+      // Checkbox mod: teletransporte en rebote de pared
+      let teleCb = document.getElementById('modTeleport');
+      if (!teleCb) {
+        const teleLbl = document.createElement('label');
+        teleLbl.style.display = 'block';
+        teleCb = document.createElement('input');
+        teleCb.type = 'checkbox';
+        teleCb.id = 'modTeleport';
+        teleLbl.appendChild(teleCb);
+        teleLbl.appendChild(document.createTextNode(' 9) Teletransporte al rebotar en pared'));
+        panel.appendChild(teleLbl);
+      }
+      if (teleCb) {
+        teleCb.addEventListener('change', (e) => {
+          STATE.mods.teleportOnWall = e.target.checked;
+        });
+      }
+      panel.appendChild(wrap);
+    }
+  } catch {}
+})();
 
 // --- Fiesta (overlay sencillo) ---
 function celebrate() {

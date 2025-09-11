@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>mongPong</title>
   <link rel="stylesheet" href="style.css" />
+  <meta name="color-scheme" content="dark" />
 </head>
 <body>
   <canvas id="game"></canvas>
@@ -12,32 +13,38 @@
   <div class="hud">
     <div class="score">
       <span id="scoreL">0</span>
-      <span class="dash">—</span>
+      <span class="dash">-</span>
       <span id="scoreR">0</span>
     </div>
     <div class="bounces">
       Botes: <span id="bounceL">0</span>
-      <span class="dash">—</span>
+      <span class="dash">-</span>
       <span id="bounceR">0</span>
     </div>
     <div class="controls">
-  <strong>Controles</strong> · P1: W/S · P2: ↑/↓ ·
-  <kbd>P</kbd> Pausa · <kbd>R</kbd> Reiniciar · <kbd>A</kbd> IA P2
-  · <button id="modsBtn" class="btn">Mods</button>
-</div>
+      <strong>Controles</strong> – P1: W/S – P2: ↑/↓ –
+      <kbd>P</kbd> Pausa – <kbd>R</kbd> Reiniciar – <kbd>A</kbd> IA P2 –
+      <button id="modsBtn" class="btn">Mods</button>
+      <button id="fsBtn" class="btn" title="Pantalla completa (requiere clic)">Pantalla completa</button>
+    </div>
 
-<!-- Panel Mods -->
-<div id="modsPanel" class="mods hidden">
-  <label><input type="checkbox" id="modSpeed"> 1) La bola gana +10% de velocidad en cada bote</label>
-  <label><input type="checkbox" id="modSize"> 2) La bola cambia ±90% de tamaño al azar en cada bote</label>
-  <label><input type="checkbox" id="modTwo"> 3) Jugar con dos pelotas</label>
-  <label><input type="checkbox" id="modWall"> 4) IA gigante (modo pared) + fiesta al llegar a 50 botes</label>
-  <label><input type="checkbox" id="modMirror"> 5) Modo espejo (controles invertidos)</label>
-  <label><input type="checkbox" id="modSpin"> 6) Spin: la pala “corta” la pelota al golpear</label>
-  <label><input type="checkbox" id="modGravity"> 7) Gravedad (la pelota cae)</label>
-  <label><input type="checkbox" id="modTrail"> 8) Estela visual de la pelota</label>
+    <!-- Panel Mods -->
+    <div id="modsPanel" class="mods hidden">
+      <label><input type="checkbox" id="modSpeed"> 1) La bola gana +10% de velocidad en cada bote</label>
+      <label><input type="checkbox" id="modSize"> 2) La bola cambia ±90% de tamaño al azar en cada bote</label>
+      <label><input type="checkbox" id="modTwo"> 3) Jugar con dos pelotas</label>
+      <label><input type="checkbox" id="modWall"> 4) IA gigante (modo pared) + fiesta al llegar a 50 botes</label>
+      <label><input type="checkbox" id="modMirror"> 5) Modo espejo (controles invertidos)</label>
+      <label><input type="checkbox" id="modSpin"> 6) Spin: la pala "corta" la pelota al golpear</label>
+      <label><input type="checkbox" id="modGravity"> 7) Gravedad (la pelota cae)</label>
+      <label><input type="checkbox" id="modTrail"> 8) Estela visual de la pelota</label>
+      <label><input type="checkbox" id="modTeleport"> 9) Teletransporte al rebotar en pared</label>
 
-</div>
+      <div style="margin-top:8px">
+        <label for="aiDiff"><strong>Dificultad IA:</strong> <span id="aiDiffLabel">Normal</span></label>
+        <input type="range" id="aiDiff" min="0.6" max="1.6" step="0.1" value="1" />
+      </div>
+    </div>
 
     <div class="status" id="status"></div>
   </div>
@@ -45,3 +52,4 @@
   <script src="main.js"></script>
 </body>
 </html>
+
