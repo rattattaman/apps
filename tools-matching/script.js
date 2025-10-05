@@ -3,6 +3,40 @@
 const board = document.getElementById('board');
 const resetBtn = document.getElementById('resetBtn');
 const statusEl = document.getElementById('status');
+const winsEl = document.getElementById('wins');
+
+const MEDAL_THRESHOLDS = { bronze: 10, silver: 20, gold: 30 };
+let ALL_ITEMS = [];
+
+function loadWins() {
+  return parseInt(localStorage.getItem('tm_wins') || '0', 10);
+}
+function saveWins(n) {
+  localStorage.setItem('tm_wins', String(n));
+}
+function loadSeen() {
+  try { return new Set(JSON.parse(localStorage.getItem('tm_seen') || '[]')); } catch { return new Set(); }
+}
+function saveSeen(set) {
+  localStorage.setItem('tm_seen', JSON.stringify(Array.from(set)));
+}
+function loadMedals() {
+  try { return JSON.parse(localStorage.getItem('tm_medals') || '{}'); } catch { return {}; }
+}
+function saveMedals(obj) {
+  localStorage.setItem('tm_medals', JSON.stringify(obj));
+}
+function updateWinsUI() {
+  const w = loadWins();
+  if (winsEl) winsEl.textContent = `Victorias: ${w}`;
+}
+function updateMedalsUI() {
+  const medals = loadMedals();
+  document.querySelectorAll('.medal').forEach(m => {
+    const k = m.getAttribute('data-medal');
+    if (medals[k]) m.classList.add('earned'); else m.classList.remove('earned');
+  });
+}
 
 // Prefer inline data (items.js) when opened from file://
 async function loadData() {
@@ -109,7 +143,10 @@ function renderBoard(deck) {
       state.matched += 1;
       announce(`${state.matched}/${state.totalPairs} parejas`);
       resetPick(state);
-      if (state.matched === state.totalPairs) announce('Completado!');
+      if (state.matched === state.totalPairs) {
+        announce('Completado!');
+        onWin(deck);
+      }
     } else {
       [state.first.el, state.second.el].forEach((c) => c.classList.add('fail'));
       setTimeout(() => {
@@ -136,12 +173,43 @@ function announce(msg) {
 
 async function init() {
   const items = await loadData();
-  // Only 18 cards (9 pairs). Pick a random subset of items that have images.
-  const PAIRS = 9;
+  ALL_ITEMS = items.slice();
+  // Only 10 cards (5 pairs). Pick a random subset of items that have images.
+  const PAIRS = 5;
   const withImages = items.filter(it => it && it.image);
   const chosen = shuffle(withImages).slice(0, Math.min(PAIRS, withImages.length));
   const deck = buildDeck(chosen);
   renderBoard(deck);
+  updateWinsUI();
+  updateMedalsUI();
+}
+
+function onWin(deck) {
+  // Increment wins
+  let wins = loadWins();
+  wins += 1; saveWins(wins); updateWinsUI();
+
+  // Mark seen ids for explorer medal
+  const seen = loadSeen();
+  const idsInRound = new Set(deck.map(d => d.id));
+  idsInRound.forEach(id => seen.add(id));
+  saveSeen(seen);
+
+  // Award medals by thresholds
+  const medals = loadMedals();
+  if (wins >= MEDAL_THRESHOLDS.bronze) medals.bronze = true;
+  if (wins >= MEDAL_THRESHOLDS.silver) medals.silver = true;
+  if (wins >= MEDAL_THRESHOLDS.gold) medals.gold = true;
+
+  // Explorer medal: if user has seen all tool ids with image
+  const withImages = ALL_ITEMS.filter(it => it && it.image).map(it => it.id);
+  const uniqueNeeded = new Set(withImages);
+  let allSeen = true;
+  uniqueNeeded.forEach(id => { if (!seen.has(id)) allSeen = false; });
+  if (allSeen && withImages.length >= 40) medals.explorer = true;
+
+  saveMedals(medals);
+  updateMedalsUI();
 }
 
 resetBtn.addEventListener('click', init);
