@@ -27,6 +27,8 @@
           </div>
           <span id="wins" class="wins" title="Victorias acumuladas"></span>
         </div>
+        <button id="achievementsBtn" aria-label="Ver logros">Logros</button>
+        <button id="resetProgressBtn" aria-label="Reiniciar progreso">Reiniciar progreso</button>
       </div>
     </header>
 
@@ -37,6 +39,17 @@
     <footer class="footer">
       <small>Abre este archivo directamente en el navegador para probar.</small>
     </footer>
+
+    <!-- Achievements panel -->
+    <div id="achievementsOverlay" class="overlay" hidden>
+      <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="achievementsTitle">
+        <div class="sheet-head">
+          <h2 id="achievementsTitle">Logros</h2>
+          <button id="achievementsClose" aria-label="Cerrar">✕</button>
+        </div>
+        <div id="achievementsList" class="ach-list" aria-live="polite"></div>
+      </div>
+    </div>
 
     <script src="data/items.js"></script>
     <script src="script.js"></script>

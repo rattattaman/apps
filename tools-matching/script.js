@@ -4,8 +4,19 @@ const board = document.getElementById('board');
 const resetBtn = document.getElementById('resetBtn');
 const statusEl = document.getElementById('status');
 const winsEl = document.getElementById('wins');
+const achievementsBtn = document.getElementById('achievementsBtn');
+const achievementsClose = document.getElementById('achievementsClose');
+const achievementsOverlay = document.getElementById('achievementsOverlay');
+const achievementsList = document.getElementById('achievementsList');
+const resetProgressBtn = document.getElementById('resetProgressBtn');
 
 const MEDAL_THRESHOLDS = { bronze: 10, silver: 20, gold: 30 };
+const ACHIEVEMENTS = [
+  { key: 'bronze',   title: 'Medalla de bronce',  desc: 'Gana 10 partidas', icon: 'assets/medals/bronze.svg', type: 'wins', threshold: 10 },
+  { key: 'silver',   title: 'Medalla de plata',   desc: 'Gana 20 partidas', icon: 'assets/medals/silver.svg', type: 'wins', threshold: 20 },
+  { key: 'gold',     title: 'Medalla de oro',     desc: 'Gana 30 partidas', icon: 'assets/medals/gold.svg',   type: 'wins', threshold: 30 },
+  { key: 'explorer', title: 'Medalla de explorador', desc: 'Empareja todas las herramientas', icon: 'assets/medals/explorer.svg', type: 'explorer' }
+];
 let ALL_ITEMS = [];
 
 function loadWins() {
@@ -21,7 +32,19 @@ function saveSeen(set) {
   localStorage.setItem('tm_seen', JSON.stringify(Array.from(set)));
 }
 function loadMedals() {
-  try { return JSON.parse(localStorage.getItem('tm_medals') || '{}'); } catch { return {}; }
+  try {
+    const raw = JSON.parse(localStorage.getItem('tm_medals') || '{}');
+    // Normalize boolean -> object
+    const norm = {};
+    for (const k of Object.keys(raw)) {
+      const v = raw[k];
+      if (typeof v === 'boolean') norm[k] = v ? { unlocked: true } : { unlocked: false };
+      else norm[k] = v;
+    }
+    return norm;
+  } catch {
+    return {};
+  }
 }
 function saveMedals(obj) {
   localStorage.setItem('tm_medals', JSON.stringify(obj));
@@ -34,8 +57,44 @@ function updateMedalsUI() {
   const medals = loadMedals();
   document.querySelectorAll('.medal').forEach(m => {
     const k = m.getAttribute('data-medal');
-    if (medals[k]) m.classList.add('earned'); else m.classList.remove('earned');
+    if (medals[k] && medals[k].unlocked) m.classList.add('earned'); else m.classList.remove('earned');
   });
+}
+
+function formatDate(d) {
+  try { return new Date(d).toLocaleString(); } catch { return String(d); }
+}
+
+function renderAchievementsPanel() {
+  const wins = loadWins();
+  const medals = loadMedals();
+  const seen = loadSeen();
+  const withImages = ALL_ITEMS.filter(it => it && it.image).map(it => it.id);
+  const total = new Set(withImages).size;
+  const seenCount = Array.from(new Set(Array.from(seen).filter(id => withImages.includes(id)))).length;
+
+  const rows = ACHIEVEMENTS.map(a => {
+    let status = 'No obtenida';
+    let date = '';
+    if (medals[a.key]?.unlocked) {
+      status = 'Obtenida';
+      if (medals[a.key]?.at) date = ` · ${formatDate(medals[a.key].at)}`;
+    } else if (a.type === 'wins') {
+      status = `Progreso: ${Math.min(wins, a.threshold)}/${a.threshold}`;
+    } else if (a.type === 'explorer') {
+      status = `Progreso: ${seenCount}/${total}`;
+    }
+    return `
+      <div class="ach">
+        <div class="icon"><img src="${a.icon}" alt="${a.title}" /></div>
+        <div class="meta">
+          <div class="title">${a.title}</div>
+          <div class="desc">${a.desc}</div>
+          <div class="date">${status}${date}</div>
+        </div>
+      </div>`;
+  });
+  achievementsList.innerHTML = rows.join('\n');
 }
 
 // Prefer inline data (items.js) when opened from file://
@@ -197,20 +256,46 @@ function onWin(deck) {
 
   // Award medals by thresholds
   const medals = loadMedals();
-  if (wins >= MEDAL_THRESHOLDS.bronze) medals.bronze = true;
-  if (wins >= MEDAL_THRESHOLDS.silver) medals.silver = true;
-  if (wins >= MEDAL_THRESHOLDS.gold) medals.gold = true;
+  const now = new Date().toISOString();
+  if (wins >= MEDAL_THRESHOLDS.bronze && !medals.bronze?.unlocked) medals.bronze = { unlocked: true, at: now };
+  if (wins >= MEDAL_THRESHOLDS.silver && !medals.silver?.unlocked) medals.silver = { unlocked: true, at: now };
+  if (wins >= MEDAL_THRESHOLDS.gold && !medals.gold?.unlocked) medals.gold = { unlocked: true, at: now };
 
   // Explorer medal: if user has seen all tool ids with image
   const withImages = ALL_ITEMS.filter(it => it && it.image).map(it => it.id);
   const uniqueNeeded = new Set(withImages);
   let allSeen = true;
   uniqueNeeded.forEach(id => { if (!seen.has(id)) allSeen = false; });
-  if (allSeen && withImages.length >= 40) medals.explorer = true;
+  if (allSeen && withImages.length >= 40 && !medals.explorer?.unlocked) medals.explorer = { unlocked: true, at: now };
 
   saveMedals(medals);
   updateMedalsUI();
 }
+
+// Overlay events
+function openAchievements() {
+  renderAchievementsPanel();
+  achievementsOverlay.hidden = false;
+}
+function closeAchievements() {
+  achievementsOverlay.hidden = true;
+}
+if (achievementsBtn) achievementsBtn.addEventListener('click', openAchievements);
+if (achievementsClose) achievementsClose.addEventListener('click', closeAchievements);
+if (achievementsOverlay) achievementsOverlay.addEventListener('click', (e) => {
+  if (e.target === achievementsOverlay) closeAchievements();
+});
+
+// Reset progress
+function resetProgress() {
+  localStorage.removeItem('tm_wins');
+  localStorage.removeItem('tm_seen');
+  localStorage.removeItem('tm_medals');
+  updateWinsUI();
+  updateMedalsUI();
+  if (!achievementsOverlay.hidden) renderAchievementsPanel();
+}
+if (resetProgressBtn) resetProgressBtn.addEventListener('click', resetProgress);
 
 resetBtn.addEventListener('click', init);
 init();
