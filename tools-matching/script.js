@@ -70,8 +70,9 @@ function renderAchievementsPanel() {
   const medals = loadMedals();
   const seen = loadSeen();
   const withImages = ALL_ITEMS.filter(it => it && it.image).map(it => it.id);
-  const total = new Set(withImages).size;
-  const seenCount = Array.from(new Set(Array.from(seen).filter(id => withImages.includes(id)))).length;
+  const totalSet = new Set(withImages);
+  const total = totalSet.size;
+  const seenCount = Array.from(new Set(Array.from(seen).filter(id => totalSet.has(id)))).length;
 
   const rows = ACHIEVEMENTS.map(a => {
     let status = 'No obtenida';
@@ -266,10 +267,29 @@ function onWin(deck) {
   const uniqueNeeded = new Set(withImages);
   let allSeen = true;
   uniqueNeeded.forEach(id => { if (!seen.has(id)) allSeen = false; });
-  if (allSeen && withImages.length >= 40 && !medals.explorer?.unlocked) medals.explorer = { unlocked: true, at: now };
+  if (allSeen && !medals.explorer?.unlocked) medals.explorer = { unlocked: true, at: now };
 
   saveMedals(medals);
   updateMedalsUI();
+  // Toasts for newly unlocked
+  if (medals.gold?.at === now) showToast('¡Medalla de oro!', 'assets/medals/gold.svg');
+  else if (medals.silver?.at === now) showToast('¡Medalla de plata!', 'assets/medals/silver.svg');
+  else if (medals.bronze?.at === now) showToast('¡Medalla de bronce!', 'assets/medals/bronze.svg');
+  if (medals.explorer?.at === now) showToast('¡Medalla de explorador!', 'assets/medals/explorer.svg');
+}
+
+// Toast function
+let toastTimer = null;
+function showToast(text, icon) {
+  const el = document.getElementById('toast');
+  const tIcon = document.getElementById('toastIcon');
+  const tText = document.getElementById('toastText');
+  if (!el || !tIcon || !tText) return;
+  tText.textContent = text;
+  if (icon) { tIcon.src = icon; tIcon.style.display = 'block'; } else { tIcon.style.display = 'none'; }
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.classList.remove('show'); }, 2200);
 }
 
 // Overlay events

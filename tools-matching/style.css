@@ -117,6 +117,7 @@ main { padding: 16px; }
 
 /* Overlay for achievements */
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: grid; place-items: center; z-index: 100; }
+.overlay[hidden] { display: none !important; }
 .sheet { width: min(680px, 92vw); background: #0b1228; color: var(--text); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .ach-list { padding: 12px 14px; display: grid; gap: 12px; }
@@ -127,3 +128,23 @@ main { padding: 16px; }
 .ach .title { font-weight: 700; }
 .ach .desc { color: var(--muted); font-size: 0.95rem; }
 .ach .date { color: var(--muted); font-size: 0.9rem; }
+
+/* Responsive board sizing for mobile */
+@media (max-width: 600px) {
+  .board { grid-template-columns: repeat(2, 1fr); }
+  .card { min-height: 180px; }
+}
+@media (min-width: 601px) and (max-width: 900px) {
+  .board { grid-template-columns: repeat(3, 1fr); }
+  .card { min-height: 180px; }
+}
+
+/* Toast notifications */
+#toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  background: rgba(0,0,0,0.8); color: white; padding: 10px 14px; border-radius: 8px;
+  display: none; align-items: center; gap: 8px; z-index: 200;
+}
+#toast.show { display: inline-flex; animation: toast-in 200ms ease-out; }
+#toast img { width: 20px; height: 20px; }
+@keyframes toast-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
