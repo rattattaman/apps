@@ -167,9 +167,9 @@ main { padding: 16px; }
 
 /* Responsive tweaks */
 @media (max-width: 600px) {
-  :root { --card-ideal: 32vw; --card-max: 160px; }
-  .board { gap: 8px; }
-  .card { min-height: 120px; }
+  :root { --card-ideal: 28vw; --card-max: 140px; }
+  .board { gap: 6px; }
+  .card { min-height: 100px; }
 }
 @media (min-width: 1200px) {
   :root { --card-ideal: 18vw; --card-max: 240px; }
