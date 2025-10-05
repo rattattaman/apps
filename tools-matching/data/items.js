@@ -1,0 +1,202 @@
+﻿window.ITEMS = [
+    {
+        "id":  "carpenter-s-square",
+        "label":  "Carpenter\u0027s square",
+        "image":  "assets/tools/tool-000.png"
+    },
+    {
+        "id":  "awl-or-punch",
+        "label":  "Awl or Punch",
+        "image":  "assets/tools/tool-001.png"
+    },
+    {
+        "id":  "caliper",
+        "label":  "Caliper",
+        "image":  "assets/tools/tool-003.png"
+    },
+    {
+        "id":  "tape-measure",
+        "label":  "Tape Measure",
+        "image":  "assets/tools/tool-005.png"
+    },
+    {
+        "id":  "carpenter-pencil",
+        "label":  "Carpenter pencil",
+        "image":  "assets/tools/tool-007.png"
+    },
+    {
+        "id":  "carpenter-ruler",
+        "label":  "Carpenter ruler",
+        "image":  "assets/tools/tool-009.png"
+    },
+    {
+        "id":  "metal-ruler",
+        "label":  "Metal ruler",
+        "image":  "assets/tools/tool-010.png"
+    },
+    {
+        "id":  "hand-clamp",
+        "label":  "Hand clamp",
+        "image":  "assets/tools/tool-011.png"
+    },
+    {
+        "id":  "bench-clamp",
+        "label":  "Bench clamp",
+        "image":  "assets/tools/tool-012.png"
+    },
+    {
+        "id":  "workbench",
+        "label":  "Workbench",
+        "image":  "assets/tools/tool-013.png"
+    },
+    {
+        "id":  "metal-spring-clamp",
+        "label":  "Metal spring clamp",
+        "image":  "assets/tools/tool-015.png"
+    },
+    {
+        "id":  "gimlet",
+        "label":  "Gimlet",
+        "image":  "assets/tools/tool-016.png"
+    },
+    {
+        "id":  "hand-drill",
+        "label":  "Hand drill",
+        "image":  "assets/tools/tool-017.png"
+    },
+    {
+        "id":  "electric-drill",
+        "label":  "Electric drill",
+        "image":  "assets/tools/tool-018.png"
+    },
+    {
+        "id":  "coping-saw",
+        "label":  "Coping saw",
+        "image":  "assets/tools/tool-019.png"
+    },
+    {
+        "id":  "electric-jigsaw",
+        "label":  "Electric jigsaw",
+        "image":  "assets/tools/tool-020.png"
+    },
+    {
+        "id":  "metal-saw",
+        "label":  "Metal saw",
+        "image":  "assets/tools/tool-021.png"
+    },
+    {
+        "id":  "wood-saw",
+        "label":  "Wood saw",
+        "image":  "assets/tools/tool-022.png"
+    },
+    {
+        "id":  "utility-knife-or-cutter",
+        "label":  "Utility knife or Cutter",
+        "image":  "assets/tools/tool-024.png"
+    },
+    {
+        "id":  "metal-scissors",
+        "label":  "Metal scissors",
+        "image":  "assets/tools/tool-026.png"
+    },
+    {
+        "id":  "electrician-scissors",
+        "label":  "Electrician scissors",
+        "image":  "assets/tools/tool-028.png"
+    },
+    {
+        "id":  "nails",
+        "label":  "Nails",
+        "image":  "assets/tools/tool-030.png"
+    },
+    {
+        "id":  "pincers",
+        "label":  "Pincers",
+        "image":  "assets/tools/tool-031.png"
+    },
+    {
+        "id":  "pliers",
+        "label":  "Pliers",
+        "image":  "assets/tools/tool-032.png"
+    },
+    {
+        "id":  "screws",
+        "label":  "Screws",
+        "image":  "assets/tools/tool-033.png"
+    },
+    {
+        "id":  "spanner",
+        "label":  "Spanner",
+        "image":  "assets/tools/tool-034.png"
+    },
+    {
+        "id":  "carpenter-s-hammer",
+        "label":  "Carpenter\u0027s hammer",
+        "image":  "assets/tools/tool-036.png"
+    },
+    {
+        "id":  "claw-hammer",
+        "label":  "Claw hammer",
+        "image":  "assets/tools/tool-038.png"
+    },
+    {
+        "id":  "ball-pein-hammer",
+        "label":  "Ball pein hammer",
+        "image":  "assets/tools/tool-040.png"
+    },
+    {
+        "id":  "flat-screwdriver",
+        "label":  "Flat screwdriver",
+        "image":  "assets/tools/tool-042.png"
+    },
+    {
+        "id":  "cross-head-screwdriver",
+        "label":  "Cross head screwdriver",
+        "image":  "assets/tools/tool-044.png"
+    },
+    {
+        "id":  "hot-glue-gun",
+        "label":  "Hot glue gun",
+        "image":  "assets/tools/tool-045.png"
+    },
+    {
+        "id":  "glue",
+        "label":  "Glue",
+        "image":  "assets/tools/tool-047.png"
+    },
+    {
+        "id":  "carpenter-s-mallet",
+        "label":  "Carpenter\u0027s mallet",
+        "image":  "assets/tools/tool-049.png"
+    },
+    {
+        "id":  "chisels",
+        "label":  "Chisels",
+        "image":  "assets/tools/tool-051.png"
+    },
+    {
+        "id":  "sander",
+        "label":  "Sander",
+        "image":  "assets/tools/tool-052.png"
+    },
+    {
+        "id":  "sandpaper",
+        "label":  "Sandpaper",
+        "image":  "assets/tools/tool-053.png"
+    },
+    {
+        "id":  "wood-file-or-rasp",
+        "label":  "Wood file or Rasp",
+        "image":  "assets/tools/tool-055.png"
+    },
+    {
+        "id":  "metal-file",
+        "label":  "Metal file",
+        "image":  "assets/tools/tool-057.png"
+    },
+    {
+        "id":  "wire-brush",
+        "label":  "Wire Brush",
+        "image":  "assets/tools/tool-059.png"
+    }
+];

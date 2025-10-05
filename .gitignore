@@ -1,0 +1,13 @@
+# Local vendor binaries and caches
+vendor/
+
+# Source materials (not for repo)
+2_ESO/
+
+# Game temp/output not needed in VCS
+tools-matching/tmp/
+
+# OS cruft
+Thumbs.db
+*.DS_Store
+

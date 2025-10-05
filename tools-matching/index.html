@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>2ESO Matching Game</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Juego de emparejar 2ESO</h1>
+      <div class="controls">
+        <button id="resetBtn" aria-label="Reiniciar">Reiniciar</button>
+        <span id="status" aria-live="polite"></span>
+      </div>
+    </header>
+
+    <main>
+      <section id="board" class="board" aria-label="Tablero de cartas"></section>
+    </main>
+
+    <footer class="footer">
+      <small>Abre este archivo directamente en el navegador para probar.</small>
+    </footer>
+
+    <script src="data/items.js"></script>
+    <script src="script.js"></script>
+  </body>
+  </html>
