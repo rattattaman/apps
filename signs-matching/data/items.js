@@ -1,122 +1,122 @@
 ﻿window.ITEMS = [
     {
-        "id":  "sign-000",
-        "label":  "sign-000",
+        "id":  "protection-obligatory-for-feet",
+        "label":  "Protection obligatory for feet",
         "image":  "assets/signs/sign-000.png"
     },
     {
-        "id":  "sign-001",
-        "label":  "sign-001",
+        "id":  "corrosive-material",
+        "label":  "Corrosive material",
         "image":  "assets/signs/sign-001.png"
     },
     {
-        "id":  "sign-002",
-        "label":  "sign-002",
+        "id":  "inflammable-material",
+        "label":  "Inflammable material",
         "image":  "assets/signs/sign-002.png"
     },
     {
-        "id":  "sign-003",
-        "label":  "sign-003",
+        "id":  "electric-shock",
+        "label":  "Electric shock",
         "image":  "assets/signs/sign-003.png"
     },
     {
-        "id":  "sign-004",
-        "label":  "sign-004",
+        "id":  "danger",
+        "label":  "Danger",
         "image":  "assets/signs/sign-004.png"
     },
     {
-        "id":  "sign-005",
-        "label":  "sign-005",
+        "id":  "first-aid",
+        "label":  "First Aid",
         "image":  "assets/signs/sign-005.png"
     },
     {
-        "id":  "sign-006",
-        "label":  "sign-006",
+        "id":  "first-aid-this-way",
+        "label":  "First aid this way",
         "image":  "assets/signs/sign-006.png"
     },
     {
-        "id":  "sign-007",
-        "label":  "sign-007",
+        "id":  "first-aid-here",
+        "label":  "First aid here",
         "image":  "assets/signs/sign-007.png"
     },
     {
-        "id":  "sign-008",
-        "label":  "sign-008",
+        "id":  "emergency-exit",
+        "label":  "Emergency exit",
         "image":  "assets/signs/sign-008.png"
     },
     {
-        "id":  "sign-009",
-        "label":  "sign-009",
+        "id":  "emergency-exit-this-way",
+        "label":  "Emergency exit this way",
         "image":  "assets/signs/sign-009.png"
     },
     {
-        "id":  "sign-010",
-        "label":  "sign-010",
+        "id":  "emergency-exit-this-way",
+        "label":  "Emergency exit this way",
         "image":  "assets/signs/sign-010.png"
     },
     {
-        "id":  "sign-011",
-        "label":  "sign-011",
+        "id":  "protection-obligatory-for-ears",
+        "label":  "Protection obligatory for ears",
         "image":  "assets/signs/sign-011.png"
     },
     {
-        "id":  "sign-012",
-        "label":  "sign-012",
+        "id":  "not-drinking-water",
+        "label":  "Not drinking water",
         "image":  "assets/signs/sign-012.png"
     },
     {
-        "id":  "sign-013",
-        "label":  "sign-013",
+        "id":  "no-running",
+        "label":  "No running",
         "image":  "assets/signs/sign-013.png"
     },
     {
-        "id":  "sign-014",
-        "label":  "sign-014",
+        "id":  "no-lighting-fires",
+        "label":  "No lighting fires",
         "image":  "assets/signs/sign-014.png"
     },
     {
-        "id":  "sign-015",
-        "label":  "sign-015",
+        "id":  "no-smoking",
+        "label":  "No smoking",
         "image":  "assets/signs/sign-015.png"
     },
     {
-        "id":  "sign-016",
-        "label":  "sign-016",
+        "id":  "don-t-extinguish-with-water",
+        "label":  "Don’t extinguish with water",
         "image":  "assets/signs/sign-016.png"
     },
     {
-        "id":  "sign-017",
-        "label":  "sign-017",
+        "id":  "protection-obligatory-for-hands",
+        "label":  "Protection obligatory for hands",
         "image":  "assets/signs/sign-017.png"
     },
     {
-        "id":  "sign-018",
-        "label":  "sign-018",
+        "id":  "protection-obligatory-for-your-head",
+        "label":  "Protection obligatory for your head",
         "image":  "assets/signs/sign-018.png"
     },
     {
-        "id":  "sign-019",
-        "label":  "sign-019",
+        "id":  "protection-obligatory-for-eyes",
+        "label":  "Protection obligatory for eyes",
         "image":  "assets/signs/sign-019.png"
     },
     {
-        "id":  "sign-020",
-        "label":  "sign-020",
+        "id":  "protection-obligatory-for-breathing",
+        "label":  "Protection obligatory for breathing",
         "image":  "assets/signs/sign-020.png"
     },
     {
-        "id":  "sign-021",
-        "label":  "sign-021",
+        "id":  "explosive-material",
+        "label":  "Explosive material",
         "image":  "assets/signs/sign-021.png"
     },
     {
-        "id":  "sign-022",
-        "label":  "sign-022",
+        "id":  "toxic-material",
+        "label":  "Toxic material",
         "image":  "assets/signs/sign-022.png"
     },
     {
-        "id":  "sign-023",
-        "label":  "sign-023",
+        "id":  "radioactive-material",
+        "label":  "Radioactive material",
         "image":  "assets/signs/sign-023.png"
     }
 ];
