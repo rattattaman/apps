@@ -1,4 +1,4 @@
-// Simple image/label matching game engine (Signs)
+﻿// Simple image/label matching game engine (Signs)
 
 const board = document.getElementById('board');
 const resetBtn = document.getElementById('resetBtn');
@@ -12,10 +12,10 @@ const resetProgressBtn = document.getElementById('resetProgressBtn');
 
 const MEDAL_THRESHOLDS = { bronze: 10, silver: 20, gold: 30 };
 const ACHIEVEMENTS = [
-  { key: 'bronze',   title: 'Medalla de bronce',  desc: 'Gana 10 partidas', icon: 'assets/medals/bronze.svg', type: 'wins', threshold: 10 },
-  { key: 'silver',   title: 'Medalla de plata',   desc: 'Gana 20 partidas', icon: 'assets/medals/silver.svg', type: 'wins', threshold: 20 },
-  { key: 'gold',     title: 'Medalla de oro',     desc: 'Gana 30 partidas', icon: 'assets/medals/gold.svg',   type: 'wins', threshold: 30 },
-  { key: 'explorer', title: 'Medalla de explorador', desc: 'Empareja todas las señales', icon: 'assets/medals/explorer.svg', type: 'explorer' }
+  { key: 'bronze',   title: 'Bronze medal',  desc: 'Win 10 games', icon: 'assets/medals/bronze.svg', type: 'wins', threshold: 10 },
+  { key: 'silver',   title: 'Silver medal',   desc: 'Win 20 games', icon: 'assets/medals/silver.svg', type: 'wins', threshold: 20 },
+  { key: 'gold',     title: 'Gold medal',     desc: 'Win 30 games', icon: 'assets/medals/gold.svg',   type: 'wins', threshold: 30 },
+  { key: 'explorer', title: 'Explorer medal', desc: 'Match all signs', icon: 'assets/medals/explorer.svg', type: 'explorer' }
 ];
 let ALL_ITEMS = [];
 
@@ -35,7 +35,7 @@ function loadMedals() {
   } catch { return {}; }
 }
 function saveMedals(obj) { localStorage.setItem('sm_medals', JSON.stringify(obj)); }
-function updateWinsUI() { const w = loadWins(); if (winsEl) winsEl.textContent = `Victorias: ${w}`; }
+function updateWinsUI() { const w = loadWins(); if (winsEl) winsEl.textContent = `Wins: ${w}`; }
 function updateMedalsUI() {
   const medals = loadMedals();
   document.querySelectorAll('.medal').forEach(m => {
@@ -56,15 +56,15 @@ function renderAchievementsPanel() {
   const seenCount = Array.from(new Set(Array.from(seen).filter(id => totalSet.has(id)))).length;
 
   const rows = ACHIEVEMENTS.map(a => {
-    let status = 'No obtenida';
+    let status = 'Not earned';
     let date = '';
     if (medals[a.key]?.unlocked) {
-      status = 'Obtenida';
-      if (medals[a.key]?.at) date = ` · ${formatDate(medals[a.key].at)}`;
+      status = 'Unlocked';
+      if (medals[a.key]?.at) date = ` Â· ${formatDate(medals[a.key].at)}`;
     } else if (a.type === 'wins') {
-      status = `Progreso: ${Math.min(wins, a.threshold)}/${a.threshold}`;
+      status = `Progress: ${Math.min(wins, a.threshold)}/${a.threshold}`;
     } else if (a.type === 'explorer') {
-      status = `Progreso: ${seenCount}/${total}`;
+      status = `Progress: ${seenCount}/${total}`;
     }
     return `
       <div class="ach">
@@ -84,13 +84,13 @@ async function loadData() {
   if (window.ITEMS && Array.isArray(window.ITEMS)) return window.ITEMS;
   try {
     const res = await fetch('data/items.json');
-    if (!res.ok) throw new Error('No se pudo cargar data/items.json');
+    if (!res.ok) throw new Error('Failed to load data/items.json');
     return await res.json();
   } catch (e) {
-    console.warn('Fallo al cargar items.json. Usando demo local.', e);
+    console.warn('Failed to load items.json. Using local demo.', e);
     return [
-      { id: 'sign_generic', label: 'Señal', image: '' },
-      { id: 'sign_other', label: 'Señal 2', image: '' }
+      { id: 'sign_generic', label: 'Sign', image: '' },
+      { id: 'sign_other', label: 'Sign 2', image: '' }
     ];
   }
 }
@@ -121,7 +121,15 @@ function createCard(cardDef, index, onReveal) {
 
   const back = document.createElement('div');
   back.className = 'face back';
-  back.innerHTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3L1 9l11 6 9-4.909V17h2V9L12 3z" fill="currentColor" opacity=".25"/></svg>';
+  back.innerHTML = '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\
+  <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">\
+    <!-- Triangle warning sign outline -->\
+    <path d="M12 4 L21 19 H3 Z"/>\
+    <!-- Exclamation mark -->\
+    <line x1="12" y1="9" x2="12" y2="14"/>\
+    <circle cx="12" cy="17" r="1"/>\
+  </g>\
+  </svg>';
 
   const front = document.createElement('div');
   front.className = 'face front';
@@ -131,17 +139,20 @@ function createCard(cardDef, index, onReveal) {
     img.className = 'img';
     img.style.backgroundImage = `url("${cardDef.image}")`;
     front.appendChild(img);
-    card.setAttribute('aria-description', 'Imagen');
+    card.setAttribute('aria-description', 'Image');
   } else {
     const lab = document.createElement('div');
     lab.className = 'label';
     lab.textContent = cardDef.label || cardDef.id;
     front.appendChild(lab);
-    card.setAttribute('aria-description', 'Etiqueta de texto');
+    card.setAttribute('aria-description', 'Text label');
   }
 
-  card.appendChild(back);
-  card.appendChild(front);
+  const inner = document.createElement('div');
+  inner.className = 'inner';
+  inner.appendChild(back);
+  inner.appendChild(front);
+  card.appendChild(inner);
   card.addEventListener('click', () => {
     if (card.classList.contains('revealed') || card.classList.contains('match')) return;
     onReveal(card, cardDef);
@@ -161,9 +172,9 @@ function renderBoard(deck) {
     if (isMatch) {
       [state.first.el, state.second.el].forEach((c) => c.classList.add('match'));
       state.matched += 1;
-      announce(`${state.matched}/${state.totalPairs} parejas`);
+      announce(`${state.matched}/${state.totalPairs} pairs`);
       resetPick(state);
-      if (state.matched === state.totalPairs) { announce('Completado!'); onWin(deck); }
+      if (state.matched === state.totalPairs) { announce('Completed!'); onWin(deck); }
     } else {
       [state.first.el, state.second.el].forEach((c) => c.classList.add('fail'));
       setTimeout(() => { [state.first.el, state.second.el].forEach((c) => { c.classList.remove('revealed', 'fail'); }); resetPick(state); }, 750);
@@ -198,10 +209,10 @@ function onWin(deck) {
   const uniqueNeeded = new Set(withImages); let allSeen = true; uniqueNeeded.forEach(id => { if (!seen.has(id)) allSeen = false; });
   if (allSeen && !medals.explorer?.unlocked) medals.explorer = { unlocked: true, at: now };
   saveMedals(medals); updateMedalsUI();
-  if (medals.gold?.at === now) showToast('¡Medalla de oro!', 'assets/medals/gold.svg');
-  else if (medals.silver?.at === now) showToast('¡Medalla de plata!', 'assets/medals/silver.svg');
-  else if (medals.bronze?.at === now) showToast('¡Medalla de bronce!', 'assets/medals/bronze.svg');
-  if (medals.explorer?.at === now) showToast('¡Medalla de explorador!', 'assets/medals/explorer.svg');
+  if (medals.gold?.at === now) showToast('Â¡Gold medal!', 'assets/medals/gold.svg');
+  else if (medals.silver?.at === now) showToast('Â¡Silver medal!', 'assets/medals/silver.svg');
+  else if (medals.bronze?.at === now) showToast('Â¡Bronze medal!', 'assets/medals/bronze.svg');
+  if (medals.explorer?.at === now) showToast('Â¡Explorer medal!', 'assets/medals/explorer.svg');
 }
 
 let toastTimer = null;

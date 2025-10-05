@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -8,44 +8,44 @@
   </head>
   <body>
     <header class="topbar">
-      <h1>Juego de emparejar 2ESO</h1>
+      <h1>Tools Matching 2ESO</h1>
       <div class="controls">
-        <button id="resetBtn" aria-label="Nueva partida">Nueva partida</button>
+        <button id="resetBtn" aria-label="New game">New Game</button>
         <span id="status" aria-live="polite"></span>
-        <div class="medals" aria-label="Medallas">
-          <div class="medal" data-medal="bronze" title="Bronce: 10 victorias">
-            <img src="assets/medals/bronze.svg" alt="Medalla de bronce" />
+        <div class="medals" aria-label="Medals">
+          <div class="medal" data-medal="bronze" title="Bronze: 10 wins">
+            <img src="assets/medals/bronze.svg" alt="Bronze medal" />
           </div>
-          <div class="medal" data-medal="silver" title="Plata: 20 victorias">
-            <img src="assets/medals/silver.svg" alt="Medalla de plata" />
+          <div class="medal" data-medal="silver" title="Silver: 20 wins">
+            <img src="assets/medals/silver.svg" alt="Silver medal" />
           </div>
-          <div class="medal" data-medal="gold" title="Oro: 30 victorias">
-            <img src="assets/medals/gold.svg" alt="Medalla de oro" />
+          <div class="medal" data-medal="gold" title="Gold: 30 wins">
+            <img src="assets/medals/gold.svg" alt="Gold medal" />
           </div>
-          <div class="medal" data-medal="explorer" title="Explorador: empareja todas las herramientas">
-            <img src="assets/medals/explorer.svg" alt="Medalla de explorador" />
+          <div class="medal" data-medal="explorer" title="Explorer: Match all tools">
+            <img src="assets/medals/explorer.svg" alt="Explorer medal" />
           </div>
-          <span id="wins" class="wins" title="Victorias acumuladas"></span>
+          <span id="wins" class="wins" title="Total wins"></span>
         </div>
-        <button id="achievementsBtn" aria-label="Ver logros">Logros</button>
-        <button id="resetProgressBtn" aria-label="Reiniciar progreso">Reiniciar progreso</button>
+        <button id="achievementsBtn" aria-label="View achievements">Achievements</button>
+        <button id="resetProgressBtn" aria-label="Reset progress">Reset Progress</button>
       </div>
     </header>
 
     <main>
-      <section id="board" class="board" aria-label="Tablero de cartas"></section>
+      <section id="board" class="board" aria-label="Card board"></section>
     </main>
 
     <footer class="footer">
-      <small>Abre este archivo directamente en el navegador para probar.</small>
+      <a href="../index.html" aria-label="Back to home">← Back to Home</a>
     </footer>
 
     <!-- Achievements panel -->
     <div id="achievementsOverlay" class="overlay" hidden>
       <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="achievementsTitle">
         <div class="sheet-head">
-          <h2 id="achievementsTitle">Logros</h2>
-          <button id="achievementsClose" aria-label="Cerrar">✕</button>
+          <h2 id="achievementsTitle">Achievements</h2>
+          <button id="achievementsClose" aria-label="Close">✕</button>
         </div>
         <div id="achievementsList" class="ach-list" aria-live="polite"></div>
       </div>

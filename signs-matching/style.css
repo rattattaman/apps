@@ -6,6 +6,9 @@
   --muted: #94a3b8;
   --ok: #10b981;
   --bad: #ef4444;
+  --card-min: 130px;
+  --card-ideal: 24vw;
+  --card-max: 220px;
 }
 
 * { box-sizing: border-box; }
@@ -43,8 +46,11 @@ main { padding: 16px; }
   margin: 0 auto;
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  max-width: 980px;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(clamp(var(--card-min), var(--card-ideal), var(--card-max)), 1fr)
+  );
+  max-width: 1200px;
   /* Ensure 3D flips render across browsers */
   perspective: 1000px;
 }
@@ -62,36 +68,64 @@ main { padding: 16px; }
   border: 1px solid rgba(255,255,255,0.08);
   box-shadow: 0 10px 24px rgba(0,0,0,0.25);
   transform-style: preserve-3d;
-  transition: transform 300ms ease, border-color 200ms;
+  transition: border-color 200ms;
 }
-.card.revealed { /* no 3D flip needed with fallback */ }
+.card.revealed { /* wrapper has no own rotation; inner handles flip */ }
+
+/* 3D flip inner wrapper */
+.inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: none;
+}
+.card.revealed .inner { transform: rotateY(180deg); animation: flip-spring 650ms cubic-bezier(.2,.8,.2,1) both; }
 .card.match { outline: 2px solid var(--ok); border-color: rgba(16,185,129,0.4); }
 .card.fail { outline: 2px solid var(--bad); border-color: rgba(239,68,68,0.4); }
 
 .face {
   position: absolute; inset: 0;
-  display: block;
+  display: grid; place-items: center;
   backface-visibility: hidden;
   transform-style: preserve-3d;
 }
 .front {
   padding: 8px;
-  /* Fallback: hidden until revealed */
-  display: none;
+  transform: rotateY(180deg);
 }
 .back {
   background: linear-gradient(135deg, rgba(34,211,238,0.1) 0%, rgba(34,211,238,0.0) 60%);
+  transform: rotateY(0deg);
 }
 
-/* Fallback visibility toggle (works even if 3D transforms fail) */
-.card.revealed .front { display: block; }
-.card.revealed .back { display: none; }
+/* 3D handles face visibility via backface-visibility */
+
+/* Lift/shadow accents */
+.card { will-change: transform; }
+.card:hover { transform: translateY(-2px); }
+.card.revealed { border-color: rgba(34,211,238,0.35); box-shadow: 0 14px 28px rgba(0,0,0,0.35); }
+
+/* Flip spring animation closer to example */
+@keyframes flip-spring {
+  0% { transform: rotateY(0deg); }
+  55% { transform: rotateY(200deg); }
+  100% { transform: rotateY(180deg); }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .inner { transition: none !important; animation: none !important; }
+}
 
 .label {
-  padding: 10px;
+  padding: 8px 10px;
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text);
+  font-size: clamp(12px, 1.4vw, 16px);
+  line-height: 1.2;
+  word-break: break-word;
 }
 .img {
   width: 100%; height: 100%;
@@ -129,14 +163,11 @@ main { padding: 16px; }
 .ach .desc { color: var(--muted); font-size: 0.95rem; }
 .ach .date { color: var(--muted); font-size: 0.9rem; }
 
-/* Responsive board sizing for mobile */
 @media (max-width: 600px) {
-  .board { grid-template-columns: repeat(2, 1fr); }
-  .card { min-height: 180px; }
+  :root { --card-ideal: 45vw; --card-max: 220px; }
 }
-@media (min-width: 601px) and (max-width: 900px) {
-  .board { grid-template-columns: repeat(3, 1fr); }
-  .card { min-height: 180px; }
+@media (min-width: 1200px) {
+  :root { --card-ideal: 18vw; --card-max: 240px; }
 }
 
 /* Toast notifications */
@@ -148,3 +179,10 @@ main { padding: 16px; }
 #toast.show { display: inline-flex; animation: toast-in 200ms ease-out; }
 #toast img { width: 20px; height: 20px; }
 @keyframes toast-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+
+/* Subtle flip animation without relying on 3D face transforms */
+@keyframes flip-lite {
+  0% { transform: rotateY(0deg) scale(1); }
+  50% { transform: rotateY(12deg) scale(0.98); }
+  100% { transform: rotateY(0deg) scale(1); }
+}

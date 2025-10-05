@@ -12,10 +12,10 @@ const resetProgressBtn = document.getElementById('resetProgressBtn');
 
 const MEDAL_THRESHOLDS = { bronze: 10, silver: 20, gold: 30 };
 const ACHIEVEMENTS = [
-  { key: 'bronze',   title: 'Medalla de bronce',  desc: 'Gana 10 partidas', icon: 'assets/medals/bronze.svg', type: 'wins', threshold: 10 },
-  { key: 'silver',   title: 'Medalla de plata',   desc: 'Gana 20 partidas', icon: 'assets/medals/silver.svg', type: 'wins', threshold: 20 },
-  { key: 'gold',     title: 'Medalla de oro',     desc: 'Gana 30 partidas', icon: 'assets/medals/gold.svg',   type: 'wins', threshold: 30 },
-  { key: 'explorer', title: 'Medalla de explorador', desc: 'Empareja todas las herramientas', icon: 'assets/medals/explorer.svg', type: 'explorer' }
+  { key: 'bronze',   title: 'Bronze medal',  desc: 'Win 10 games', icon: 'assets/medals/bronze.svg', type: 'wins', threshold: 10 },
+  { key: 'silver',   title: 'Silver medal',  desc: 'Win 20 games', icon: 'assets/medals/silver.svg', type: 'wins', threshold: 20 },
+  { key: 'gold',     title: 'Gold medal',    desc: 'Win 30 games', icon: 'assets/medals/gold.svg',   type: 'wins', threshold: 30 },
+  { key: 'explorer', title: 'Explorer medal', desc: 'Match all tools', icon: 'assets/medals/explorer.svg', type: 'explorer' }
 ];
 let ALL_ITEMS = [];
 
@@ -51,7 +51,7 @@ function saveMedals(obj) {
 }
 function updateWinsUI() {
   const w = loadWins();
-  if (winsEl) winsEl.textContent = `Victorias: ${w}`;
+  if (winsEl) winsEl.textContent = `Wins: ${w}`;
 }
 function updateMedalsUI() {
   const medals = loadMedals();
@@ -75,15 +75,15 @@ function renderAchievementsPanel() {
   const seenCount = Array.from(new Set(Array.from(seen).filter(id => totalSet.has(id)))).length;
 
   const rows = ACHIEVEMENTS.map(a => {
-    let status = 'No obtenida';
+    let status = 'Not earned';
     let date = '';
     if (medals[a.key]?.unlocked) {
-      status = 'Obtenida';
+      status = 'Unlocked';
       if (medals[a.key]?.at) date = ` · ${formatDate(medals[a.key].at)}`;
     } else if (a.type === 'wins') {
-      status = `Progreso: ${Math.min(wins, a.threshold)}/${a.threshold}`;
+      status = `Progress: ${Math.min(wins, a.threshold)}/${a.threshold}`;
     } else if (a.type === 'explorer') {
-      status = `Progreso: ${seenCount}/${total}`;
+      status = `Progress: ${seenCount}/${total}`;
     }
     return `
       <div class="ach">
@@ -147,7 +147,16 @@ function createCard(cardDef, index, onReveal) {
 
   const back = document.createElement('div');
   back.className = 'face back';
-  back.innerHTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3L1 9l11 6 9-4.909V17h2V9L12 3z" fill="currentColor" opacity=".25"/></svg>';
+  back.innerHTML = '<svg width="42" height="42" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\
+  <g stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">\
+    <!-- Hammer outline -->\
+    <rect x="5" y="6" width="9" height="3" rx="1"/>\
+    <line x1="11" y1="9" x2="11" y2="18"/>\
+    <!-- Screwdriver crossed -->\
+    <line x1="7" y1="17" x2="17" y2="7"/>\
+    <polyline points="16,6 18,6 18,8"/>\
+  </g>\
+  </svg>';
 
   const front = document.createElement('div');
   front.className = 'face front';
@@ -166,8 +175,11 @@ function createCard(cardDef, index, onReveal) {
     card.setAttribute('aria-description', 'Etiqueta de texto');
   }
 
-  card.appendChild(back);
-  card.appendChild(front);
+  const inner = document.createElement('div');
+  inner.className = 'inner';
+  inner.appendChild(back);
+  inner.appendChild(front);
+  card.appendChild(inner);
 
   card.addEventListener('click', () => {
     if (card.classList.contains('revealed') || card.classList.contains('match')) return;
@@ -201,10 +213,10 @@ function renderBoard(deck) {
     if (isMatch) {
       [state.first.el, state.second.el].forEach((c) => c.classList.add('match'));
       state.matched += 1;
-      announce(`${state.matched}/${state.totalPairs} parejas`);
+      announce(`${state.matched}/${state.totalPairs} pairs`);
       resetPick(state);
       if (state.matched === state.totalPairs) {
-        announce('Completado!');
+        announce('Completed!');
         onWin(deck);
       }
     } else {
