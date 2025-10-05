@@ -1,7 +1,8 @@
-# Apps de prueba
+# Apps
 
-Este repositorio es mi espacio personal para hacer experimentos con GitHub Pages.
+Índice de mini‑apps publicables en GitHub Pages.
 
-- 🔗 Página principal: [https://rattattaman.github.io/apps/](https://rattattaman.github.io/apps/)
-- 📂 Aquí subiré pruebas y mini-proyectos.
-- 🕹️ Juego: [mongPong](mongpong/index.html)
+- Home: https://rattattaman.github.io/apps/
+- Tools Matching (2ESO): tools-matching/index.html
+- mongPong: mongpong/index.html
+
