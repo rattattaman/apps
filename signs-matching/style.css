@@ -6,9 +6,9 @@
   --muted: #94a3b8;
   --ok: #10b981;
   --bad: #ef4444;
-  --card-min: 130px;
-  --card-ideal: 24vw;
-  --card-max: 220px;
+  --card-min: 110px;
+  --card-ideal: 22vw;
+  --card-max: 200px;
 }
 
 * { box-sizing: border-box; }
@@ -164,7 +164,9 @@ main { padding: 16px; }
 .ach .date { color: var(--muted); font-size: 0.9rem; }
 
 @media (max-width: 600px) {
-  :root { --card-ideal: 45vw; --card-max: 220px; }
+  :root { --card-ideal: 32vw; --card-max: 160px; }
+  .board { gap: 8px; }
+  .card { min-height: 120px; }
 }
 @media (min-width: 1200px) {
   :root { --card-ideal: 18vw; --card-max: 240px; }
