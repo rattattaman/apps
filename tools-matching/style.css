@@ -109,10 +109,10 @@ main { padding: 16px; }
 @media (min-width: 920px) {
   .topbar h1 { font-size: 20px; }
 }
-.medals { display: inline-flex; align-items: center; gap: 10px; margin-left: 8px; }
-.medal { width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; filter: grayscale(100%) opacity(0.5); }
+.medals { display: inline-flex; align-items: center; gap: 12px; margin-left: 8px; }
+.medal { width: 72px; height: 72px; display: inline-flex; align-items: center; justify-content: center; filter: grayscale(100%) opacity(0.5); }
 .medal.earned { filter: none; }
-.medal img { width: 40px; height: 40px; display: block; }
+.medal img { width: 64px; height: 64px; display: block; }
 .wins { font-size: 12px; color: var(--muted); margin-left: 4px; }
 
 /* Overlay for achievements */
@@ -121,9 +121,9 @@ main { padding: 16px; }
 .sheet { width: min(680px, 92vw); background: #0b1228; color: var(--text); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,0.08); }
 .ach-list { padding: 12px 14px; display: grid; gap: 12px; }
-.ach { display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: center; padding: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
-.ach .icon { width: 48px; height: 48px; display: grid; place-items: center; }
-.ach .icon img { width: 44px; height: 44px; }
+.ach { display: grid; grid-template-columns: 72px 1fr; gap: 12px; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; }
+.ach .icon { width: 72px; height: 72px; display: grid; place-items: center; }
+.ach .icon img { width: 64px; height: 64px; }
 .ach .meta { display: grid; gap: 4px; }
 .ach .title { font-weight: 700; }
 .ach .desc { color: var(--muted); font-size: 0.95rem; }
