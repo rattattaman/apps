@@ -1,0 +1,56 @@
+﻿Type:
+Mandatory signs
+Background colour:
+Blue
+Colour of edge:
+White
+Colour of figure/image:
+White
+Protection obligatory for feet
+Protection obligatory for hands
+Protection obligatory for eyes
+Protection obligatory for ears
+Protection obligatory for breathing
+Protection obligatory for your head
+Type:
+Danger signs
+Background colour:
+Yellow
+Colour of edge:
+Black
+Colour of figure/image:
+Black
+Toxic material
+Radioactive material
+Inflammable material
+Explosive material
+Danger
+Electric shock
+Corrosive material
+Type:
+Emergency signs
+Background colour:
+Green
+Colour of edge:
+White
+Colour of figure/image:
+White
+First Aid
+First aid this way
+First aid here
+Emergency exit this way
+Emergency exit
+Emergency exit this way
+Type:
+Prohibition signs
+Background colour:
+White 
+Colour of edge:
+Red
+Colour of figure/image:
+Black
+No running
+Not drinking water
+Donâ€™t extinguish with water
+No lighting fires
+No smoking

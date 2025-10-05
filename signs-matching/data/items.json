@@ -1,0 +1,122 @@
+﻿[
+    {
+        "id":  "sign-000",
+        "label":  "sign-000",
+        "image":  "assets/signs/sign-000.png"
+    },
+    {
+        "id":  "sign-001",
+        "label":  "sign-001",
+        "image":  "assets/signs/sign-001.png"
+    },
+    {
+        "id":  "sign-002",
+        "label":  "sign-002",
+        "image":  "assets/signs/sign-002.png"
+    },
+    {
+        "id":  "sign-003",
+        "label":  "sign-003",
+        "image":  "assets/signs/sign-003.png"
+    },
+    {
+        "id":  "sign-004",
+        "label":  "sign-004",
+        "image":  "assets/signs/sign-004.png"
+    },
+    {
+        "id":  "sign-005",
+        "label":  "sign-005",
+        "image":  "assets/signs/sign-005.png"
+    },
+    {
+        "id":  "sign-006",
+        "label":  "sign-006",
+        "image":  "assets/signs/sign-006.png"
+    },
+    {
+        "id":  "sign-007",
+        "label":  "sign-007",
+        "image":  "assets/signs/sign-007.png"
+    },
+    {
+        "id":  "sign-008",
+        "label":  "sign-008",
+        "image":  "assets/signs/sign-008.png"
+    },
+    {
+        "id":  "sign-009",
+        "label":  "sign-009",
+        "image":  "assets/signs/sign-009.png"
+    },
+    {
+        "id":  "sign-010",
+        "label":  "sign-010",
+        "image":  "assets/signs/sign-010.png"
+    },
+    {
+        "id":  "sign-011",
+        "label":  "sign-011",
+        "image":  "assets/signs/sign-011.png"
+    },
+    {
+        "id":  "sign-012",
+        "label":  "sign-012",
+        "image":  "assets/signs/sign-012.png"
+    },
+    {
+        "id":  "sign-013",
+        "label":  "sign-013",
+        "image":  "assets/signs/sign-013.png"
+    },
+    {
+        "id":  "sign-014",
+        "label":  "sign-014",
+        "image":  "assets/signs/sign-014.png"
+    },
+    {
+        "id":  "sign-015",
+        "label":  "sign-015",
+        "image":  "assets/signs/sign-015.png"
+    },
+    {
+        "id":  "sign-016",
+        "label":  "sign-016",
+        "image":  "assets/signs/sign-016.png"
+    },
+    {
+        "id":  "sign-017",
+        "label":  "sign-017",
+        "image":  "assets/signs/sign-017.png"
+    },
+    {
+        "id":  "sign-018",
+        "label":  "sign-018",
+        "image":  "assets/signs/sign-018.png"
+    },
+    {
+        "id":  "sign-019",
+        "label":  "sign-019",
+        "image":  "assets/signs/sign-019.png"
+    },
+    {
+        "id":  "sign-020",
+        "label":  "sign-020",
+        "image":  "assets/signs/sign-020.png"
+    },
+    {
+        "id":  "sign-021",
+        "label":  "sign-021",
+        "image":  "assets/signs/sign-021.png"
+    },
+    {
+        "id":  "sign-022",
+        "label":  "sign-022",
+        "image":  "assets/signs/sign-022.png"
+    },
+    {
+        "id":  "sign-023",
+        "label":  "sign-023",
+        "image":  "assets/signs/sign-023.png"
+    }
+]
