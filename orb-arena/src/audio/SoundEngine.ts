@@ -9,24 +9,24 @@ export class SoundEngine {
   }
 
   impact(strength = 1): void {
-    this.tone(130 + strength * 42, 0.045, 'square', 0.03);
+    this.tone(130 + strength * 42, 0.085, 'square', 0.075);
   }
 
   parry(): void {
-    this.tone(720, 0.055, 'triangle', 0.024);
+    this.tone(720, 0.1, 'triangle', 0.06);
   }
 
   shot(): void {
-    this.tone(310, 0.035, 'sawtooth', 0.018);
+    this.tone(310, 0.07, 'sawtooth', 0.05);
   }
 
   elimination(): void {
-    this.tone(92, 0.2, 'sawtooth', 0.045, -45);
+    this.tone(92, 0.28, 'sawtooth', 0.11, -45);
   }
 
   victory(): void {
     [392, 523, 659].forEach((frequency, index) => {
-      window.setTimeout(() => this.tone(frequency, 0.16, 'triangle', 0.032), index * 105);
+      window.setTimeout(() => this.tone(frequency, 0.22, 'triangle', 0.07), index * 120);
     });
   }
 
@@ -57,10 +57,10 @@ export class SoundEngine {
     this.context = new AudioContext();
     this.masterGain = this.context.createGain();
     this.compressor = this.context.createDynamicsCompressor();
-    this.masterGain.gain.value = 2.8;
-    this.compressor.threshold.value = -12;
-    this.compressor.knee.value = 10;
-    this.compressor.ratio.value = 6;
+    this.masterGain.gain.value = 5.5;
+    this.compressor.threshold.value = -8;
+    this.compressor.knee.value = 8;
+    this.compressor.ratio.value = 8;
     this.compressor.attack.value = 0.003;
     this.compressor.release.value = 0.18;
     this.masterGain.connect(this.compressor).connect(this.context.destination);
