@@ -127,7 +127,9 @@ function initialHud(config: BattleConfig): FighterHudState[] {
     health: config.startingHealth,
     maxHealth: config.startingHealth,
     alive: true,
-    stat: fighter.weapon === 'bow' ? 'RÁFAGA ×1' : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
+    stat: fighter.weapon === 'bow'
+      ? `RÁFAGA ×${WEAPONS[fighter.weapon].initialBurstSize ?? 1}`
+      : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }
 

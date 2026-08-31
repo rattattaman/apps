@@ -6,7 +6,7 @@ const base: WeaponProgress = { damage: 8, range: 60, angularSpeed: 2, burstSize:
 describe('progresión de armas', () => {
   it('incrementa solo la estadística distintiva de cada arma', () => {
     expect(progressAfterHit('sword', base)).toMatchObject({ damage: 9, angularSpeed: 2 });
-    expect(progressAfterHit('dagger', base)).toMatchObject({ damage: 8, angularSpeed: 2.85 });
+    expect(progressAfterHit('dagger', base)).toMatchObject({ damage: 8, angularSpeed: 3.5 });
     expect(progressAfterHit('spear', base)).toMatchObject({ damage: 8.5, range: 63 });
     expect(progressAfterHit('bow', base)).toMatchObject({ burstSize: 2 });
   });
@@ -24,6 +24,6 @@ describe('recarga por atacante y objetivo', () => {
 
 describe('ráfaga escalonada del arco', () => {
   it('programa cada flecha en un instante distinto', () => {
-    expect(burstShotDelays(4, 135)).toEqual([0, 135, 270, 405]);
+    expect(burstShotDelays(4, 80)).toEqual([0, 80, 160, 240]);
   });
 });

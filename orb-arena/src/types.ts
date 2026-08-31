@@ -23,6 +23,7 @@ export interface WeaponDefinition {
   damage: number;
   range: number;
   angularSpeed: number;
+  initialBurstSize?: number;
   color: number;
   glyph: string;
 }

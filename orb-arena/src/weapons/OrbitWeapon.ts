@@ -22,7 +22,7 @@ export class OrbitWeapon {
       damage: definition.damage,
       range: definition.range,
       angularSpeed: definition.angularSpeed,
-      burstSize: 1,
+      burstSize: definition.initialBurstSize ?? 1,
     };
     this.graphics = scene.add.graphics().setDepth(5);
   }

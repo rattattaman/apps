@@ -23,7 +23,9 @@ export const PROJECTILES = {
   lifetimeMs: 4_000,
   radius: 6,
   fireIntervalMs: 2_650,
-  burstSpacingMs: 135,
+  burstSpacingMs: 80,
+  burstAngleSpacing: 0.045,
+  maxBurstSpread: 0.32,
   maxBurst: 18,
 } as const;
 
@@ -41,7 +43,7 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
   dagger: {
     type: 'dagger', name: 'Daga', glyph: '⌁', color: 0xf05a67,
-    ability: 'Acelera mucho su giro tras cada impacto', damage: 5, range: 26, angularSpeed: 5.4,
+    ability: 'Gana +1,5 de giro tras cada impacto', damage: 1, range: 26, angularSpeed: 5.4,
   },
   spear: {
     type: 'spear', name: 'Lanza', glyph: '⟶', color: 0x68d7ff,
@@ -49,7 +51,7 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
   bow: {
     type: 'bow', name: 'Arco', glyph: '❯', color: 0xb882ff,
-    ability: 'Añade una flecha escalonada por ráfaga', damage: 6, range: 58, angularSpeed: 3,
+    ability: 'Empieza con 3 flechas y añade una por impacto', damage: 1, range: 58, angularSpeed: 3, initialBurstSize: 3,
   },
 };
 

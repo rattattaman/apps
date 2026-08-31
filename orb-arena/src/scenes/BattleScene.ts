@@ -323,7 +323,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         fighter.id,
         now + PROJECTILES.fireIntervalMs + Math.max(0, count - 1) * PROJECTILES.burstSpacingMs,
       );
-      const spread = count === 1 ? 0 : Math.min(0.72, 0.105 * (count - 1));
+      const spread = count === 1
+        ? 0
+        : Math.min(PROJECTILES.maxBurstSpread, PROJECTILES.burstAngleSpacing * (count - 1));
       const shotDelays = burstShotDelays(count, PROJECTILES.burstSpacingMs);
       for (let index = 0; index < count; index += 1) {
         const offset = count === 1 ? 0 : -spread / 2 + (spread * index) / (count - 1);
