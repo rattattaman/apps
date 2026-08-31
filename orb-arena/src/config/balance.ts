@@ -35,8 +35,8 @@ export const FIREBALL = {
   speed: 7.4,
   radius: 10,
   fireIntervalMs: 2_450,
-  baseExplosionRadius: 42,
-  explosionRadiusGrowth: 10,
+  baseExplosionRadius: 70,
+  explosionRadiusGrowth: 14,
 } as const;
 
 export const SHIELD = {

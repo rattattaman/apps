@@ -17,6 +17,7 @@ describe('arenaSizeForFighterCount', () => {
   });
 
   it('hace crecer físicamente la explosión y el ancho del escudo', () => {
+    expect(fireballExplosionRadius(1)).toBe(70);
     expect(fireballExplosionRadius(2)).toBeGreaterThan(fireballExplosionRadius(1));
     expect(shieldWidthForSize(2)).toBeGreaterThan(shieldWidthForSize(1));
   });

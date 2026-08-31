@@ -78,15 +78,14 @@ export class OrbitWeapon {
     const type = this.owner.selection.weapon;
     const definition = WEAPONS[type];
     if (type === 'shield') {
-      const radius = ARENA.orbRadius + this.range;
-      const halfAngle = Math.min(1.2, this.shieldWidth / radius / 2);
-      this.graphics.clear().setPosition(0, 0).setRotation(0)
+      const segment = this.shieldSegment();
+      this.graphics.clear().setPosition(segment.start.x, segment.start.y).setRotation(this.angle + Math.PI / 2)
         .lineStyle(SHIELD.thickness + 7, definition.color, 0.16)
-        .beginPath().arc(this.owner.x, this.owner.y, radius, this.angle - halfAngle, this.angle + halfAngle).strokePath()
+        .beginPath().moveTo(0, 0).lineTo(this.shieldWidth, 0).strokePath()
         .lineStyle(SHIELD.thickness, definition.color, 0.95)
-        .beginPath().arc(this.owner.x, this.owner.y, radius, this.angle - halfAngle, this.angle + halfAngle).strokePath()
+        .beginPath().moveTo(0, 0).lineTo(this.shieldWidth, 0).strokePath()
         .lineStyle(2, 0xeafff5, 0.8)
-        .beginPath().arc(this.owner.x, this.owner.y, radius - 4, this.angle - halfAngle, this.angle + halfAngle).strokePath();
+        .beginPath().moveTo(4, -3).lineTo(this.shieldWidth - 4, -3).strokePath();
       return;
     }
     const segment = this.segment();

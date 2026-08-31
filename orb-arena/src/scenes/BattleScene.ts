@@ -385,6 +385,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       projectile.update(now);
       if (!projectile.alive) continue;
       if (projectile.x < inset || projectile.x > this.arenaSize - inset || projectile.y < inset || projectile.y > this.arenaSize - inset) {
+        if (projectile.kind === 'fireball') this.explodeFireball(projectile);
         projectile.destroy();
         continue;
       }
