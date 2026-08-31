@@ -392,6 +392,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       let blocked = false;
       for (const defender of this.aliveFighters()) {
         if (defender === projectile.owner || now - projectile.lastDeflectedAt < 130) continue;
+        if (projectile.kind === 'fireball' && defender.selection.weapon !== 'shield') continue;
         const segment = defender.weapon.segment();
         const blockDistance = defender.selection.weapon === 'shield'
           ? SHIELD.thickness + projectile.hitRadius
