@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { ARENA } from '../config/balance';
 import { resolveArenaWallContact } from './physicsLogic';
 
 const resolve = (x: number, y: number, velocity: { x: number; y: number }) =>
-  resolveArenaWallContact(x, y, velocity, 34, 1120, 650, 29, 2.9);
+  resolveArenaWallContact(
+    x, y, velocity, ARENA.padding, ARENA.width, ARENA.height, ARENA.orbRadius, ARENA.minSpeed,
+  );
+
+const nearRight = ARENA.width - ARENA.padding - ARENA.orbRadius;
+const nearBottom = ARENA.height - ARENA.padding - ARENA.orbRadius;
+const correctedFarEdge = nearRight - 1.5;
 
 describe('salida de paredes', () => {
   it('separa la bola de una pared y fuerza velocidad hacia el interior', () => {
@@ -12,13 +19,13 @@ describe('salida de paredes', () => {
       velocity: { x: 2.9, y: 4 },
       corrected: true,
     });
-    expect(resolve(1057, 300, { x: 0.2, y: -3 }).velocity).toEqual({ x: -2.9, y: -3 });
+    expect(resolve(nearRight, 300, { x: 0.2, y: -3 }).velocity).toEqual({ x: -2.9, y: -3 });
   });
 
   it('corrige ambos ejes al quedar atrapada en una esquina', () => {
-    expect(resolve(63, 587, { x: -0.1, y: 0 })).toEqual({
+    expect(resolve(63, nearBottom, { x: -0.1, y: 0 })).toEqual({
       x: 64.5,
-      y: 585.5,
+      y: correctedFarEdge,
       velocity: { x: 2.9, y: -2.9 },
       corrected: true,
     });

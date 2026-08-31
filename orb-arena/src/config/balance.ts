@@ -1,8 +1,8 @@
 import type { FighterSelection, WeaponDefinition, WeaponType } from '../types';
 
 export const ARENA = {
-  width: 1120,
-  height: 650,
+  width: 820,
+  height: 820,
   padding: 34,
   orbRadius: 29,
   minSpeed: 2.9,

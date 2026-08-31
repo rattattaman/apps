@@ -221,11 +221,17 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private spawnPositions(count: number): Array<{ x: number; y: number }> {
+    const left = ARENA.width * 0.25;
+    const right = ARENA.width * 0.75;
+    const centerX = ARENA.width * 0.5;
+    const top = ARENA.height * 0.25;
+    const bottom = ARENA.height * 0.75;
+    const centerY = ARENA.height * 0.5;
     const all = count === 2
-      ? [{ x: 280, y: 325 }, { x: 840, y: 325 }]
+      ? [{ x: left, y: centerY }, { x: right, y: centerY }]
       : count === 3
-        ? [{ x: 290, y: 205 }, { x: 830, y: 205 }, { x: 560, y: 475 }]
-        : [{ x: 250, y: 190 }, { x: 870, y: 200 }, { x: 260, y: 470 }, { x: 860, y: 465 }];
+        ? [{ x: left, y: top }, { x: right, y: top }, { x: centerX, y: bottom }]
+        : [{ x: left, y: top }, { x: right, y: top }, { x: left, y: bottom }, { x: right, y: bottom }];
     return all.map((position) => ({
       x: position.x + this.random.between(-28, 28),
       y: position.y + this.random.between(-24, 24),
