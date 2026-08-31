@@ -1,36 +1,56 @@
-export type ArenaWall = 'left' | 'right' | 'top' | 'bottom';
-
 export interface Velocity {
   x: number;
   y: number;
 }
 
-export function closestArenaWall(
+export interface WallContactCorrection {
+  x: number;
+  y: number;
+  velocity: Velocity;
+  corrected: boolean;
+}
+
+export function resolveArenaWallContact(
   x: number,
   y: number,
+  velocity: Velocity,
   inset: number,
   arenaWidth: number,
   arenaHeight: number,
-): ArenaWall {
-  const distances: Array<[ArenaWall, number]> = [
-    ['left', Math.abs(x - inset)],
-    ['right', Math.abs(arenaWidth - inset - x)],
-    ['top', Math.abs(y - inset)],
-    ['bottom', Math.abs(arenaHeight - inset - y)],
-  ];
-  distances.sort((first, second) => first[1] - second[1]);
-  return (distances[0] as [ArenaWall, number])[0];
-}
-
-export function escapeWallVelocity(
-  wall: ArenaWall,
-  velocity: Velocity,
+  radius: number,
   minimumInwardSpeed: number,
-): Velocity {
-  switch (wall) {
-    case 'left': return { x: Math.max(Math.abs(velocity.x), minimumInwardSpeed), y: velocity.y };
-    case 'right': return { x: -Math.max(Math.abs(velocity.x), minimumInwardSpeed), y: velocity.y };
-    case 'top': return { x: velocity.x, y: Math.max(Math.abs(velocity.y), minimumInwardSpeed) };
-    case 'bottom': return { x: velocity.x, y: -Math.max(Math.abs(velocity.y), minimumInwardSpeed) };
+  separation = 1.5,
+): WallContactCorrection {
+  const left = inset + radius + separation;
+  const right = arenaWidth - inset - radius - separation;
+  const top = inset + radius + separation;
+  const bottom = arenaHeight - inset - radius - separation;
+  let nextX = x;
+  let nextY = y;
+  let nextVelocityX = velocity.x;
+  let nextVelocityY = velocity.y;
+
+  if (x <= left) {
+    nextX = left;
+    nextVelocityX = Math.max(Math.abs(velocity.x), minimumInwardSpeed);
+  } else if (x >= right) {
+    nextX = right;
+    nextVelocityX = -Math.max(Math.abs(velocity.x), minimumInwardSpeed);
   }
+
+  if (y <= top) {
+    nextY = top;
+    nextVelocityY = Math.max(Math.abs(velocity.y), minimumInwardSpeed);
+  } else if (y >= bottom) {
+    nextY = bottom;
+    nextVelocityY = -Math.max(Math.abs(velocity.y), minimumInwardSpeed);
+  }
+
+  return {
+    x: nextX,
+    y: nextY,
+    velocity: { x: nextVelocityX, y: nextVelocityY },
+    corrected: nextX !== x || nextY !== y
+      || nextVelocityX !== velocity.x || nextVelocityY !== velocity.y,
+  };
 }
