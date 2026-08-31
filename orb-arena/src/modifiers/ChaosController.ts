@@ -19,9 +19,22 @@ interface ChaosModifier {
   apply(host: ChaosHost, random: SeededRandom): void;
 }
 
+export function createChaosGravity(random: Pick<SeededRandom, 'between'>): { x: number; y: number } {
+  const angle = random.between(0, Math.PI * 2);
+  const strength = random.between(1.65, 2.25);
+  return { x: Math.cos(angle) * strength, y: Math.sin(angle) * strength };
+}
+
 const MODIFIERS: ChaosModifier[] = [
   { name: 'MUROS HAMBRIENTOS', detail: 'La arena se encoge', apply: (host) => host.shrinkArena(18) },
-  { name: 'GRAVEDAD ROTA', detail: 'Una fuerza lateral arrastra los orbes', apply: (host, random) => host.setTemporaryGravity(random.between(-0.55, 0.55), random.between(-0.4, 0.4), CHAOS.temporaryDurationMs) },
+  {
+    name: 'GRAVEDAD ROTA',
+    detail: 'Una gravedad intensa cambia de dirección',
+    apply: (host, random) => {
+      const gravity = createChaosGravity(random);
+      host.setTemporaryGravity(gravity.x, gravity.y, CHAOS.temporaryDurationMs);
+    },
+  },
   { name: 'ACERO VIVO', detail: 'Todas las armas crecen', apply: (host) => host.growWeapons(1.13) },
   { name: 'ECO DE FLECHAS', detail: 'Los proyectiles se duplican', apply: (host) => host.setProjectileMultiplier(2, CHAOS.temporaryDurationMs) },
   { name: 'GIRO INVERSO', detail: 'Las órbitas cambian de sentido', apply: (host) => host.reverseSpin() },

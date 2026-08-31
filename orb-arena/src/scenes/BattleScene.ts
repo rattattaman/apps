@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
-import { ContactCooldowns } from '../combat/combatLogic';
+import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
+import { closestArenaWall, escapeWallVelocity } from '../combat/physicsLogic';
 import { ARENA, CHAOS, DEFAULT_FIGHTERS, PROJECTILES } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
@@ -47,6 +48,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private nextShrinkAt = ARENA.battleLimitMs + 8_000;
   private readonly nextShotAt = new Map<string, number>();
   private readonly lastBounceHealAt = new Map<string, number>();
+  private readonly lastWallEscapeAt = new Map<string, number>();
   private arenaBorder!: Phaser.GameObjects.Graphics;
 
   constructor() {
@@ -182,6 +184,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.nextShrinkAt = ARENA.battleLimitMs + 8_000;
     this.nextShotAt.clear();
     this.lastBounceHealAt.clear();
+    this.lastWallEscapeAt.clear();
+    this.matter.world.setGravity(0, 0);
     this.matter.world.engine.timing.timeScale = this.simulationSpeed;
   }
 
@@ -250,6 +254,12 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       this.arenaBorder.clear().lineStyle(2, 0x9aa7bd, 0.28)
         .strokeRect(inset, inset, innerWidth, innerHeight);
     }
+    for (const fighter of this.aliveFighters()) {
+      fighter.orb.setPosition(
+        Phaser.Math.Clamp(fighter.x, inset + ARENA.orbRadius, ARENA.width - inset - ARENA.orbRadius),
+        Phaser.Math.Clamp(fighter.y, inset + ARENA.orbRadius, ARENA.height - inset - ARENA.orbRadius),
+      );
+    }
   }
 
   private updateMeleeCombat(now: number): void {
@@ -300,19 +310,25 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.nextShotAt.set(fighter.id, now + 90);
         continue;
       }
-      this.nextShotAt.set(fighter.id, now + PROJECTILES.fireIntervalMs);
       const count = Math.min(PROJECTILES.maxBurst, fighter.weapon.burstSize) * this.projectileMultiplier;
-      const baseAngle = fighter.weapon.angle;
+      this.nextShotAt.set(
+        fighter.id,
+        now + PROJECTILES.fireIntervalMs + Math.max(0, count - 1) * PROJECTILES.burstSpacingMs,
+      );
       const spread = count === 1 ? 0 : Math.min(0.72, 0.105 * (count - 1));
-      const start = fighter.weapon.segment().end;
+      const shotDelays = burstShotDelays(count, PROJECTILES.burstSpacingMs);
       for (let index = 0; index < count; index += 1) {
         const offset = count === 1 ? 0 : -spread / 2 + (spread * index) / (count - 1);
-        this.projectiles.push(new Projectile(
-          this, fighter, fighter.weapon.damage, start.x, start.y,
-          baseAngle + offset, this.projectileSequence++,
-        ));
+        this.time.delayedCall(shotDelays[index] as number, () => {
+          if (!fighter.alive || this.ending) return;
+          const start = fighter.weapon.segment().end;
+          this.projectiles.push(new Projectile(
+            this, fighter, fighter.weapon.damage, start.x, start.y,
+            fighter.weapon.angle + offset, this.projectileSequence++,
+          ));
+          this.audio.shot();
+        });
       }
-      this.audio.shot();
     }
   }
 
@@ -395,8 +411,10 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private onCollisionStart(event: CollisionEvent): void {
-    if (!this.bounceHealing || this.ending) return;
+    if (this.ending) return;
     for (const pair of event.pairs) {
+      this.handleWallPair(pair);
+      if (!this.bounceHealing) continue;
       for (const body of [pair.bodyA, pair.bodyB]) {
         const fighter = this.fighters.find((candidate) => candidate.id === body.label && candidate.alive);
         if (!fighter || this.time.now - (this.lastBounceHealAt.get(fighter.id) ?? -Infinity) < 700) continue;
@@ -408,6 +426,26 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.emitHud(true);
       }
     }
+  }
+
+  private handleWallPair(pair: CollisionPair): void {
+    const fighterBody = pair.bodyA.label === 'arena-wall' ? pair.bodyB
+      : pair.bodyB.label === 'arena-wall' ? pair.bodyA
+        : null;
+    if (!fighterBody) return;
+    const fighter = this.fighters.find((candidate) => candidate.id === fighterBody.label && candidate.alive);
+    if (!fighter) return;
+    const now = this.time.now;
+    if (now - (this.lastWallEscapeAt.get(fighter.id) ?? -Infinity) < 90) return;
+    this.lastWallEscapeAt.set(fighter.id, now);
+    const body = fighter.orb.body as MatterJS.BodyType;
+    const wall = closestArenaWall(fighter.x, fighter.y, this.arenaInset, ARENA.width, ARENA.height);
+    const velocity = escapeWallVelocity(
+      wall,
+      body.velocity,
+      ARENA.minSpeed * this.globalSpeed * 0.9,
+    );
+    fighter.orb.setVelocity(velocity.x, velocity.y);
   }
 
   private preventEndlessBattle(elapsed: number): void {

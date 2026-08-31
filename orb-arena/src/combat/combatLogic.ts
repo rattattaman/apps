@@ -7,11 +7,15 @@ export interface WeaponProgress {
   burstSize: number;
 }
 
+export function burstShotDelays(count: number, spacingMs: number): number[] {
+  return Array.from({ length: Math.max(0, count) }, (_, index) => index * spacingMs);
+}
+
 export function progressAfterHit(type: WeaponType, current: WeaponProgress): WeaponProgress {
   switch (type) {
     case 'sword': return { ...current, damage: current.damage + 1 };
-    case 'dagger': return { ...current, angularSpeed: current.angularSpeed + 0.2 };
-    case 'spear': return { ...current, damage: current.damage + 0.5, range: current.range + 0.5 };
+    case 'dagger': return { ...current, angularSpeed: current.angularSpeed + 0.85 };
+    case 'spear': return { ...current, damage: current.damage + 0.5, range: current.range + 3 };
     case 'bow': return { ...current, burstSize: current.burstSize + 1 };
   }
 }

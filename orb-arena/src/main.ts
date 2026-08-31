@@ -40,6 +40,10 @@ const pauseButton = byId<HTMLButtonElement>('pause-button');
 const muteButton = byId<HTMLButtonElement>('mute-button');
 const particlesButton = byId<HTMLButtonElement>('particles-button');
 const battleStatus = byId<HTMLElement>('battle-status');
+const transitionOverlay = byId<HTMLDivElement>('transition-overlay');
+const foundStartButton = setupForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+if (!foundStartButton) throw new Error('Falta el botón de inicio');
+const startButton: HTMLButtonElement = foundStartButton;
 
 let currentConfig: BattleConfig = {
   seed: 'ORB-ARENA', startingHealth: 100, chaosMode: false, fighters: DEFAULT_FIGHTERS,
@@ -48,6 +52,7 @@ let muted = false;
 let particlesEnabled = true;
 let paused = false;
 let simulationSpeed = 1;
+let startPending = false;
 
 seedInput.value = generateSeed();
 
@@ -124,6 +129,10 @@ function initialHud(config: BattleConfig): FighterHudState[] {
 }
 
 function startBattle(config: BattleConfig): void {
+  if (startPending) return;
+  startPending = true;
+  startButton.disabled = true;
+  transitionOverlay.classList.remove('hidden');
   currentConfig = structuredClone(config);
   seedInput.value = currentConfig.seed;
   seedDisplay.textContent = currentConfig.seed;
@@ -138,11 +147,13 @@ function startBattle(config: BattleConfig): void {
   game.registry.set('simulationSpeed', simulationSpeed);
   game.registry.set('muted', muted);
   game.registry.set('particlesEnabled', particlesEnabled);
-  game.scene.stop('battle');
-  game.scene.start('battle');
+  battleScene().scene.restart();
 }
 
 function openSetup(newSeed: boolean): void {
+  transitionOverlay.classList.add('hidden');
+  startPending = false;
+  startButton.disabled = false;
   if (newSeed) seedInput.value = generateSeed();
   if (!game.scene.isPaused('battle')) game.scene.pause('battle');
   setupOverlay.classList.remove('hidden');
@@ -225,6 +236,11 @@ window.addEventListener('keydown', (event) => {
 
 gameEvents.on('battle:hud', (states: FighterHudState[]) => renderScoreboard(states));
 gameEvents.on('battle:event', (payload: BattleEventPayload) => addEvent(payload));
+gameEvents.on('battle:started', () => {
+  startPending = false;
+  startButton.disabled = false;
+  transitionOverlay.classList.add('hidden');
+});
 gameEvents.on('battle:ended', (payload: BattleEndPayload) => {
   recordBattle(payload.weapon);
   updateCareerStats();

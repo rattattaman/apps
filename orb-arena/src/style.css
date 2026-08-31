@@ -97,6 +97,10 @@ button { color: inherit; }
 
 .setup-overlay { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 18px; overflow: auto; background: rgba(4, 6, 11, .84); backdrop-filter: blur(17px); }
 .setup-overlay.hidden, .hidden { display: none; }
+.transition-overlay { position: fixed; inset: 0; z-index: 12; display: grid; place-content: center; justify-items: center; gap: 16px; color: #c9ced8; background: rgba(5, 7, 12, .88); backdrop-filter: blur(13px); font: 800 .66rem/1 ui-monospace, monospace; letter-spacing: .18em; }
+.transition-overlay.hidden { display: none; }
+.transition-orb { width: 42px; height: 42px; border: 3px solid var(--gold); border-radius: 50%; box-shadow: 0 0 24px rgba(255, 189, 67, .25); animation: transition-pulse .7s ease-in-out infinite alternate; }
+@keyframes transition-pulse { to { transform: scale(.76); opacity: .45; } }
 .setup-card { width: min(900px, 100%); margin: auto; padding: clamp(22px, 4vw, 42px); border: 1px solid #343a49; border-radius: 12px; background: linear-gradient(145deg, rgba(255,255,255,.025), transparent 45%), #0f121b; box-shadow: 0 40px 120px rgba(0,0,0,.6); }
 .setup-heading { display: flex; justify-content: space-between; gap: 30px; align-items: center; margin-bottom: 30px; }
 .eyebrow { margin: 0 0 10px; color: var(--gold); font: 800 .64rem/1 ui-monospace, monospace; letter-spacing: .2em; }

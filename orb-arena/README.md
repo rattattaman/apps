@@ -13,10 +13,10 @@ Simulador automático de combates 2D para dos a cuatro orbes. El espectador conf
 
 ## Armas
 
-- **Espada:** equilibrada; suma 1 de daño tras cada impacto.
-- **Daga:** corta y ligera; acelera su giro tras cada impacto.
-- **Lanza:** larga y lenta; aplica mucho retroceso y suma 0,5 de daño y alcance.
-- **Arco:** dispara periódicamente; cada impacto añade una flecha a sus próximas ráfagas.
+- **Espada:** comienza con 1 de daño y suma 1 tras cada impacto.
+- **Daga:** es la más corta y rápida; gana mucha velocidad de giro tras cada impacto.
+- **Lanza:** comienza con 1 de daño, aplica mucho retroceso y suma 0,5 de daño y 3 de alcance.
+- **Arco:** dispara periódicamente; cada impacto añade una flecha escalonada a sus próximas ráfagas.
 
 ## Controles
 
@@ -27,7 +27,7 @@ Simulador automático de combates 2D para dos a cuatro orbes. El espectador conf
 
 ## Modo Caos
 
-Los modificadores viven en `src/modifiers/ChaosController.ts` como una lista modular y determinista. Incluye arena menguante, gravedad temporal, crecimiento de armas, duplicación de flechas, giro inverso, curación al rebotar, muerte súbita y aceleración global.
+Los modificadores viven en `src/modifiers/ChaosController.ts` como una lista modular y determinista. Incluye arena menguante, gravedad temporal intensa, crecimiento de armas, duplicación de flechas, giro inverso, curación al rebotar, muerte súbita y aceleración global. Fuera de este modificador, la arena conserva gravedad cero.
 
 ## Estructura
 

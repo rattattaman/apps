@@ -17,6 +17,7 @@ export const PROJECTILES = {
   lifetimeMs: 4_000,
   radius: 6,
   fireIntervalMs: 2_650,
+  burstSpacingMs: 135,
   maxBurst: 18,
 } as const;
 
@@ -30,19 +31,19 @@ export const CHAOS = {
 export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   sword: {
     type: 'sword', name: 'Espada', glyph: '╱', color: 0xf6c453,
-    ability: 'Cada impacto suma +1 de daño', damage: 8, range: 62, angularSpeed: 2.25,
+    ability: 'Cada impacto suma +1 de daño', damage: 1, range: 62, angularSpeed: 3.25,
   },
   dagger: {
     type: 'dagger', name: 'Daga', glyph: '⌁', color: 0xf05a67,
-    ability: 'Acelera su giro tras cada impacto', damage: 5, range: 43, angularSpeed: 3.55,
+    ability: 'Acelera mucho su giro tras cada impacto', damage: 5, range: 26, angularSpeed: 5.4,
   },
   spear: {
     type: 'spear', name: 'Lanza', glyph: '⟶', color: 0x68d7ff,
-    ability: 'Crece +0,5 de daño y alcance', damage: 10, range: 88, angularSpeed: 1.5,
+    ability: 'Gana +0,5 de daño y +3 de alcance', damage: 1, range: 88, angularSpeed: 2.55,
   },
   bow: {
     type: 'bow', name: 'Arco', glyph: '❯', color: 0xb882ff,
-    ability: 'Añade una flecha por ráfaga', damage: 6, range: 58, angularSpeed: 1.8,
+    ability: 'Añade una flecha escalonada por ráfaga', damage: 6, range: 58, angularSpeed: 3,
   },
 };
 
