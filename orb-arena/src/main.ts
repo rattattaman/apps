@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
-import { ARENA, arenaSizeForFighterCount, DEFAULT_FIGHTERS, WEAPONS } from './config/balance';
+import { arenaSizeForFighterCount, DEFAULT_FIGHTERS, WEAPONS } from './config/balance';
 import { gameEvents, type FighterHudState } from './events';
 import { BattleScene } from './scenes/BattleScene';
 import { loadStats, recordBattle } from './storage/stats';
@@ -47,6 +47,8 @@ const resolvedArenaFrame: HTMLElement = arenaFrame;
 const foundStartButton = setupForm.querySelector<HTMLButtonElement>('button[type="submit"]');
 if (!foundStartButton) throw new Error('Falta el botón de inicio');
 const startButton: HTMLButtonElement = foundStartButton;
+const defaultArenaSize = arenaSizeForFighterCount(DEFAULT_FIGHTERS.length);
+resolvedArenaFrame.style.setProperty('--arena-size', `${defaultArenaSize}px`);
 
 let currentConfig: BattleConfig = {
   seed: 'ORB-ARENA', startingHealth: 100, chaosMode: false, fighters: DEFAULT_FIGHTERS,
@@ -62,8 +64,8 @@ seedInput.value = generateSeed();
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-canvas',
-  width: ARENA.width,
-  height: ARENA.height,
+  width: defaultArenaSize,
+  height: defaultArenaSize,
   backgroundColor: '#0b0e17',
   transparent: true,
   antialias: true,
@@ -107,6 +109,7 @@ function readConfig(): BattleConfig {
 }
 
 function renderScoreboard(states: FighterHudState[]): void {
+  scoreboard.style.setProperty('--fighter-count', String(states.length));
   scoreboard.innerHTML = states.map((fighter) => {
     const healthPercent = Math.max(0, fighter.health / fighter.maxHealth * 100);
     return `<article class="fighter-card ${fighter.alive ? '' : 'eliminated'}" style="--fighter-color:${fighter.colorCss}">
@@ -129,7 +132,11 @@ function initialHud(config: BattleConfig): FighterHudState[] {
     alive: true,
     stat: fighter.weapon === 'bow'
       ? `RÁFAGA ×${WEAPONS[fighter.weapon].initialBurstSize ?? 1}`
-      : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
+      : fighter.weapon === 'wand'
+        ? `DAÑO ${WEAPONS.wand.damage} · EXPLOSIÓN ${WEAPONS.wand.initialExplosionSize ?? 1}`
+        : fighter.weapon === 'shield'
+          ? `ESCUDO ${WEAPONS.shield.initialShieldSize ?? 1}`
+          : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }
 

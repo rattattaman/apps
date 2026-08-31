@@ -15,7 +15,9 @@ export const ARENA = {
 export function arenaSizeForFighterCount(count: number): number {
   if (count <= 2) return 600;
   if (count === 3) return 710;
-  return ARENA.width;
+  if (count === 4) return ARENA.width;
+  if (count === 5) return 920;
+  return 1020;
 }
 
 export const PROJECTILES = {
@@ -28,6 +30,28 @@ export const PROJECTILES = {
   maxBurstSpread: 0.32,
   maxBurst: 18,
 } as const;
+
+export const FIREBALL = {
+  speed: 7.4,
+  radius: 10,
+  fireIntervalMs: 2_450,
+  baseExplosionRadius: 42,
+  explosionRadiusGrowth: 10,
+} as const;
+
+export const SHIELD = {
+  baseWidth: 64,
+  widthGrowth: 12,
+  thickness: 11,
+} as const;
+
+export function fireballExplosionRadius(size: number): number {
+  return FIREBALL.baseExplosionRadius + Math.max(0, size - 1) * FIREBALL.explosionRadiusGrowth;
+}
+
+export function shieldWidthForSize(size: number): number {
+  return SHIELD.baseWidth + Math.max(0, size - 1) * SHIELD.widthGrowth;
+}
 
 export const CHAOS = {
   firstEventMs: 9_000,
@@ -53,6 +77,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'bow', name: 'Arco', glyph: '❯', color: 0xb882ff,
     ability: 'Empieza con 3 flechas y añade una por impacto', damage: 1, range: 58, angularSpeed: 3, initialBurstSize: 3,
   },
+  wand: {
+    type: 'wand', name: 'Varita', glyph: '✦', color: 0xff7a3d,
+    ability: 'Cada daño suma +1 de daño y explosión', damage: 1, range: 54, angularSpeed: 3.35, initialExplosionSize: 1,
+  },
+  shield: {
+    type: 'shield', name: 'Escudo', glyph: '◖', color: 0x5de3a1,
+    ability: 'Refleja el daño y se ensancha al bloquear', damage: 0, range: 38, angularSpeed: 2.7, initialShieldSize: 1,
+  },
 };
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [
@@ -60,4 +92,6 @@ export const DEFAULT_FIGHTERS: FighterSelection[] = [
   { name: 'FURIA', weapon: 'dagger', color: 0xf34f64, colorCss: '#f34f64' },
   { name: 'NEXO', weapon: 'spear', color: 0x3ac7eb, colorCss: '#3ac7eb' },
   { name: 'VANTA', weapon: 'bow', color: 0x9d70f8, colorCss: '#9d70f8' },
+  { name: 'PYRA', weapon: 'wand', color: 0xff743d, colorCss: '#ff743d' },
+  { name: 'AEGIS', weapon: 'shield', color: 0x55dda0, colorCss: '#55dda0' },
 ];

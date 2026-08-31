@@ -5,6 +5,8 @@ export interface WeaponProgress {
   range: number;
   angularSpeed: number;
   burstSize: number;
+  explosionSize: number;
+  shieldSize: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -17,6 +19,8 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'dagger': return { ...current, angularSpeed: current.angularSpeed + 1.5 };
     case 'spear': return { ...current, damage: current.damage + 0.5, range: current.range + 3 };
     case 'bow': return { ...current, burstSize: current.burstSize + 1 };
+    case 'wand': return { ...current, damage: current.damage + 1, explosionSize: current.explosionSize + 1 };
+    case 'shield': return { ...current, shieldSize: current.shieldSize + 1 };
   }
 }
 
@@ -26,6 +30,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'dagger': return `GIRO ${format(progress.angularSpeed)}×`;
     case 'spear': return `DAÑO ${format(progress.damage)} · RANGO ${format(progress.range)}`;
     case 'bow': return `RÁFAGA ×${progress.burstSize}`;
+    case 'wand': return `DAÑO ${format(progress.damage)} · EXPLOSIÓN ${progress.explosionSize}`;
+    case 'shield': return `ESCUDO ${progress.shieldSize}`;
   }
 }
 

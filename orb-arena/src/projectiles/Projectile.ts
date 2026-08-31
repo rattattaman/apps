@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { COLLISION, type Combatant } from '../combat/Combatant';
-import { PROJECTILES } from '../config/balance';
+import { FIREBALL, PROJECTILES } from '../config/balance';
+
+export type ProjectileKind = 'arrow' | 'fireball';
 
 export class Projectile {
   readonly id: string;
@@ -17,31 +19,38 @@ export class Projectile {
     y: number,
     angle: number,
     sequence: number,
+    readonly kind: ProjectileKind = 'arrow',
+    readonly explosionSize = 0,
   ) {
-    this.id = `arrow-${sequence}`;
+    this.id = `${kind}-${sequence}`;
     this.bornAt = scene.time.now;
-    this.sprite = scene.matter.add.image(x, y, 'arrow', undefined, {
-      shape: { type: 'rectangle', width: 30, height: 7 },
+    this.sprite = scene.matter.add.image(x, y, kind, undefined, {
+      shape: kind === 'fireball'
+        ? { type: 'circle', radius: FIREBALL.radius }
+        : { type: 'rectangle', width: 30, height: 7 },
       isSensor: true,
       frictionAir: 0,
     });
     this.sprite.setCollisionCategory(COLLISION.projectile).setCollidesWith(0).setRotation(angle);
-    this.sprite.setVelocity(Math.cos(angle) * PROJECTILES.speed, Math.sin(angle) * PROJECTILES.speed);
+    const speed = kind === 'fireball' ? FIREBALL.speed : PROJECTILES.speed;
+    this.sprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
   }
 
   get x(): number { return this.sprite.x; }
   get y(): number { return this.sprite.y; }
+  get hitRadius(): number { return this.kind === 'fireball' ? FIREBALL.radius : PROJECTILES.radius; }
 
   update(now: number): void {
     if (!this.alive) return;
     const body = this.sprite.body as MatterJS.BodyType;
-    this.sprite.setRotation(Math.atan2(body.velocity.y, body.velocity.x));
+    if (this.kind === 'arrow') this.sprite.setRotation(Math.atan2(body.velocity.y, body.velocity.x));
     if (now - this.bornAt > PROJECTILES.lifetimeMs) this.destroy();
   }
 
   deflect(normalAngle: number, now: number): void {
     const body = this.sprite.body as MatterJS.BodyType;
-    const speed = Math.min(PROJECTILES.speed * 1.2, Math.hypot(body.velocity.x, body.velocity.y) * 1.08);
+    const baseSpeed = this.kind === 'fireball' ? FIREBALL.speed : PROJECTILES.speed;
+    const speed = Math.min(baseSpeed * 1.2, Math.hypot(body.velocity.x, body.velocity.y) * 1.08);
     const velocityAngle = Math.atan2(body.velocity.y, body.velocity.x);
     const reflected = 2 * normalAngle - velocityAngle + Math.PI;
     this.sprite.setVelocity(Math.cos(reflected) * speed, Math.sin(reflected) * speed);

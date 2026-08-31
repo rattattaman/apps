@@ -3,7 +3,7 @@ import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, PROJECTILES } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, PROJECTILES, SHIELD } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -81,7 +81,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
     this.updateParries(time);
-    this.updateBows(time);
+    this.updateRangedWeapons(time);
     this.updateProjectiles(time);
     this.chaosController?.update(elapsed);
     this.preventEndlessBattle(elapsed);
@@ -205,6 +205,14 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       graphics.generateTexture('arrow', 36, 9);
       graphics.destroy();
     }
+    if (!this.textures.exists('fireball')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      graphics.fillStyle(0xff5a28, 0.22).fillCircle(14, 14, 14);
+      graphics.fillStyle(0xff7a32, 0.85).fillCircle(14, 14, 10);
+      graphics.fillStyle(0xffdc7a, 1).fillCircle(12, 12, 5);
+      graphics.generateTexture('fireball', 28, 28);
+      graphics.destroy();
+    }
   }
 
   private createFighters(): void {
@@ -234,7 +242,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       ? [{ x: left, y: centerY }, { x: right, y: centerY }]
       : count === 3
         ? [{ x: left, y: top }, { x: right, y: top }, { x: centerX, y: bottom }]
-        : [{ x: left, y: top }, { x: right, y: top }, { x: left, y: bottom }, { x: right, y: bottom }];
+        : count === 4
+          ? [{ x: left, y: top }, { x: right, y: top }, { x: left, y: bottom }, { x: right, y: bottom }]
+          : Array.from({ length: count }, (_, index) => {
+            const angle = -Math.PI / 2 + index * Math.PI * 2 / count;
+            const radius = this.arenaSize * 0.3;
+            return { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius };
+          });
     return all.map((position) => ({
       x: position.x + this.random.between(-28, 28),
       y: position.y + this.random.between(-24, 24),
@@ -272,10 +286,18 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private updateMeleeCombat(now: number): void {
     for (const attacker of this.aliveFighters()) {
-      if (attacker.selection.weapon === 'bow') continue;
+      if (['bow', 'wand', 'shield'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of this.aliveFighters()) {
         if (target === attacker) continue;
+        if (target.selection.weapon === 'shield'
+          && segmentDistanceSquared(segment, target.weapon.segment()) <= (SHIELD.thickness + 5) ** 2) {
+          if (this.cooldowns.canTrigger(`shield-${target.id}`, attacker.id, now, ARENA.weaponHitCooldownMs)) {
+            const impact = target.weapon.segment().start;
+            this.applyReflectedDamage(target, attacker, attacker.weapon.damage, impact.x, impact.y);
+          }
+          continue;
+        }
         const hitRadius = ARENA.orbRadius + 7;
         if (pointToSegmentDistanceSquared(target, segment) > hitRadius * hitRadius) continue;
         if (!this.cooldowns.canTrigger(attacker.id, target.id, now, ARENA.weaponHitCooldownMs)) continue;
@@ -291,6 +313,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const first = alive[firstIndex] as Combatant;
       for (let secondIndex = firstIndex + 1; secondIndex < alive.length; secondIndex += 1) {
         const second = alive[secondIndex] as Combatant;
+        if (first.selection.weapon === 'shield' || second.selection.weapon === 'shield') continue;
         if (segmentDistanceSquared(first.weapon.segment(), second.weapon.segment()) > 100) continue;
         if (!this.cooldowns.canTrigger(`parry-${first.id}`, second.id, now, ARENA.parryCooldownMs)) continue;
         first.weapon.parry();
@@ -306,9 +329,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
   }
 
-  private updateBows(now: number): void {
+  private updateRangedWeapons(now: number): void {
     for (const fighter of this.aliveFighters()) {
-      if (fighter.selection.weapon !== 'bow') continue;
+      if (fighter.selection.weapon !== 'bow' && fighter.selection.weapon !== 'wand') continue;
       if (now < (this.nextShotAt.get(fighter.id) ?? 0)) continue;
       const target = this.nearestRival(fighter);
       if (!target) continue;
@@ -316,6 +339,20 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const alignment = Math.abs(Phaser.Math.Angle.Wrap(fighter.weapon.angle - targetAngle));
       if (alignment > 0.42) {
         this.nextShotAt.set(fighter.id, now + 90);
+        continue;
+      }
+      if (fighter.selection.weapon === 'wand') {
+        this.nextShotAt.set(fighter.id, now + FIREBALL.fireIntervalMs);
+        const count = this.projectileMultiplier;
+        for (let index = 0; index < count; index += 1) {
+          const offset = count === 1 ? 0 : (index - (count - 1) / 2) * 0.1;
+          const start = fighter.weapon.segment().end;
+          this.projectiles.push(new Projectile(
+            this, fighter, fighter.weapon.damage, start.x, start.y,
+            fighter.weapon.angle + offset, this.projectileSequence++, 'fireball', fighter.weapon.explosionSize,
+          ));
+        }
+        this.audio.shot();
         continue;
       }
       const count = Math.min(PROJECTILES.maxBurst, fighter.weapon.burstSize) * this.projectileMultiplier;
@@ -355,7 +392,16 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       for (const defender of this.aliveFighters()) {
         if (defender === projectile.owner || now - projectile.lastDeflectedAt < 130) continue;
         const segment = defender.weapon.segment();
-        if (pointToSegmentDistanceSquared(projectile, segment) > 110) continue;
+        const blockDistance = defender.selection.weapon === 'shield'
+          ? SHIELD.thickness + projectile.hitRadius
+          : Math.sqrt(110);
+        if (pointToSegmentDistanceSquared(projectile, segment) > blockDistance ** 2) continue;
+        if (defender.selection.weapon === 'shield') {
+          this.applyReflectedDamage(defender, projectile.owner, projectile.damage, projectile.x, projectile.y);
+          projectile.destroy();
+          blocked = true;
+          break;
+        }
         projectile.deflect(defender.weapon.angle + Math.PI / 2, now);
         defender.weapon.parry();
         this.spark(projectile.x, projectile.y, 0xd9e6ff, 4);
@@ -366,8 +412,12 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       if (blocked) continue;
       for (const target of this.aliveFighters()) {
         if (target === projectile.owner) continue;
-        if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > (ARENA.orbRadius + PROJECTILES.radius) ** 2) continue;
-        this.applyDamage(projectile.owner, target, projectile.damage, 0.8, projectile.x, projectile.y);
+        if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > (ARENA.orbRadius + projectile.hitRadius) ** 2) continue;
+        if (projectile.kind === 'fireball') {
+          this.explodeFireball(projectile);
+        } else {
+          this.applyDamage(projectile.owner, target, projectile.damage, 0.8, projectile.x, projectile.y);
+        }
         projectile.destroy();
         break;
       }
@@ -392,6 +442,41 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     });
     this.emitHud(true);
     if (target.health <= 0) this.eliminate(target, attacker);
+  }
+
+  private applyReflectedDamage(defender: Combatant, attacker: Combatant, baseDamage: number, impactX: number, impactY: number): void {
+    if (!defender.alive || !attacker.alive || this.ending) return;
+    const damage = baseDamage * (this.suddenDeath ? 2 : 1);
+    const applied = attacker.damage(damage);
+    const angle = Math.atan2(attacker.y - defender.y, attacker.x - defender.x);
+    this.addVelocity(attacker, angle, 1.4);
+    const progression = defender.weapon.registerHit();
+    this.audio.parry();
+    this.spark(impactX, impactY, defender.selection.color, 12);
+    this.floatText(attacker.x, attacker.y - 28, `↩ −${Math.round(applied)}`, defender.selection.colorCss);
+    this.floatText(defender.x, defender.y - 40, `↑ ${progression}`, defender.selection.colorCss, true);
+    gameEvents.emit('battle:event', {
+      kind: 'parry', title: `${defender.selection.name} REFLEJA`,
+      detail: `${Math.round(applied)} de daño devuelto · ${progression}`,
+    });
+    this.emitHud(true);
+    if (attacker.health <= 0) this.eliminate(attacker, defender);
+  }
+
+  private explodeFireball(projectile: Projectile): void {
+    const radius = fireballExplosionRadius(projectile.explosionSize);
+    const wave = this.add.circle(projectile.x, projectile.y, radius, 0xff6a32, 0.2).setDepth(17).setScale(0.25);
+    this.tweens.add({
+      targets: wave, scale: 1, alpha: 0, duration: 320, ease: 'Quad.easeOut',
+      onComplete: () => wave.destroy(),
+    });
+    this.spark(projectile.x, projectile.y, 0xff8a45, 18);
+    for (const target of this.aliveFighters()) {
+      if (target === projectile.owner) continue;
+      const hitRadius = radius + ARENA.orbRadius;
+      if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > hitRadius ** 2) continue;
+      this.applyDamage(projectile.owner, target, projectile.damage, 1.05, projectile.x, projectile.y);
+    }
   }
 
   private eliminate(target: Combatant, attacker: Combatant): void {

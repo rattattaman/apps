@@ -1,4 +1,4 @@
-export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow'] as const;
+export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield'] as const;
 
 export type WeaponType = typeof WEAPON_TYPES[number];
 
@@ -24,6 +24,8 @@ export interface WeaponDefinition {
   range: number;
   angularSpeed: number;
   initialBurstSize?: number;
+  initialExplosionSize?: number;
+  initialShieldSize?: number;
   color: number;
   glyph: string;
 }
