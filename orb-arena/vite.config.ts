@@ -15,9 +15,9 @@ export default defineConfig({
     assetsDir: 'assets',
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/orb-arena.js',
-        chunkFileNames: 'assets/[name].js',
-        assetFileNames: 'assets/orb-arena[extname]',
+        entryFileNames: 'assets/orb-arena-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/orb-arena-[hash][extname]',
       },
     },
     chunkSizeWarningLimit: 1_600,
