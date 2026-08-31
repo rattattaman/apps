@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
-import { ARENA, DEFAULT_FIGHTERS, WEAPONS } from './config/balance';
+import { ARENA, arenaSizeForFighterCount, DEFAULT_FIGHTERS, WEAPONS } from './config/balance';
 import { gameEvents, type FighterHudState } from './events';
 import { BattleScene } from './scenes/BattleScene';
 import { loadStats, recordBattle } from './storage/stats';
@@ -41,6 +41,9 @@ const muteButton = byId<HTMLButtonElement>('mute-button');
 const particlesButton = byId<HTMLButtonElement>('particles-button');
 const battleStatus = byId<HTMLElement>('battle-status');
 const transitionOverlay = byId<HTMLDivElement>('transition-overlay');
+const arenaFrame = document.querySelector<HTMLElement>('.arena-frame');
+if (!arenaFrame) throw new Error('Falta el marco de la arena');
+const resolvedArenaFrame: HTMLElement = arenaFrame;
 const foundStartButton = setupForm.querySelector<HTMLButtonElement>('button[type="submit"]');
 if (!foundStartButton) throw new Error('Falta el botón de inicio');
 const startButton: HTMLButtonElement = foundStartButton;
@@ -143,6 +146,9 @@ function startBattle(config: BattleConfig): void {
   setupOverlay.classList.add('hidden');
   paused = false;
   updatePauseButton();
+  const arenaSize = arenaSizeForFighterCount(currentConfig.fighters.length);
+  resolvedArenaFrame.style.setProperty('--arena-size', `${arenaSize}px`);
+  game.scale.resize(arenaSize, arenaSize);
   game.registry.set('battleConfig', currentConfig);
   game.registry.set('simulationSpeed', simulationSpeed);
   game.registry.set('muted', muted);

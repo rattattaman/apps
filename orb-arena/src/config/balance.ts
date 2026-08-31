@@ -12,6 +12,12 @@ export const ARENA = {
   battleLimitMs: 120_000,
 } as const;
 
+export function arenaSizeForFighterCount(count: number): number {
+  if (count <= 2) return 600;
+  if (count === 3) return 710;
+  return ARENA.width;
+}
+
 export const PROJECTILES = {
   speed: 9.2,
   lifetimeMs: 4_000,

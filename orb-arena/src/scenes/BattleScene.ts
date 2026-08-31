@@ -3,7 +3,7 @@ import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, CHAOS, DEFAULT_FIGHTERS, PROJECTILES } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, PROJECTILES } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -33,6 +33,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private random = new SeededRandom(PREVIEW_CONFIG.seed);
   private battleConfig: BattleConfig = PREVIEW_CONFIG;
   private chaosController: ChaosController | null = null;
+  private arenaSize: number = ARENA.width;
   private arenaInset: number = ARENA.padding;
   private spinDirection = 1;
   private projectileMultiplier = 1;
@@ -56,6 +57,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   create(): void {
     this.resetState();
+    this.cameras.main.setSize(this.arenaSize, this.arenaSize);
     this.createTextures();
     this.arenaBorder = this.add.graphics().setDepth(1);
     this.createWalls();
@@ -164,6 +166,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private resetState(): void {
     this.battleConfig = (this.registry.get('battleConfig') as BattleConfig | undefined) ?? PREVIEW_CONFIG;
+    this.arenaSize = arenaSizeForFighterCount(this.battleConfig.fighters.length);
     this.simulationSpeed = (this.registry.get('simulationSpeed') as number | undefined) ?? 1;
     this.particlesEnabled = (this.registry.get('particlesEnabled') as boolean | undefined) ?? true;
     this.audio.setMuted((this.registry.get('muted') as boolean | undefined) ?? false);
@@ -221,12 +224,12 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private spawnPositions(count: number): Array<{ x: number; y: number }> {
-    const left = ARENA.width * 0.25;
-    const right = ARENA.width * 0.75;
-    const centerX = ARENA.width * 0.5;
-    const top = ARENA.height * 0.25;
-    const bottom = ARENA.height * 0.75;
-    const centerY = ARENA.height * 0.5;
+    const left = this.arenaSize * 0.25;
+    const right = this.arenaSize * 0.75;
+    const centerX = this.arenaSize * 0.5;
+    const top = this.arenaSize * 0.25;
+    const bottom = this.arenaSize * 0.75;
+    const centerY = this.arenaSize * 0.5;
     const all = count === 2
       ? [{ x: left, y: centerY }, { x: right, y: centerY }]
       : count === 3
@@ -242,14 +245,14 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     for (const wall of this.walls) this.matter.world.remove(wall);
     const thickness = 50;
     const inset = this.arenaInset;
-    const innerWidth = ARENA.width - inset * 2;
-    const innerHeight = ARENA.height - inset * 2;
+    const innerWidth = this.arenaSize - inset * 2;
+    const innerHeight = this.arenaSize - inset * 2;
     const options = { isStatic: true, restitution: 1, friction: 0, label: 'arena-wall' };
     this.walls = [
-      this.matter.add.rectangle(inset - thickness / 2, ARENA.height / 2, thickness, innerHeight + thickness * 2, options),
-      this.matter.add.rectangle(ARENA.width - inset + thickness / 2, ARENA.height / 2, thickness, innerHeight + thickness * 2, options),
-      this.matter.add.rectangle(ARENA.width / 2, inset - thickness / 2, innerWidth, thickness, options),
-      this.matter.add.rectangle(ARENA.width / 2, ARENA.height - inset + thickness / 2, innerWidth, thickness, options),
+      this.matter.add.rectangle(inset - thickness / 2, this.arenaSize / 2, thickness, innerHeight + thickness * 2, options),
+      this.matter.add.rectangle(this.arenaSize - inset + thickness / 2, this.arenaSize / 2, thickness, innerHeight + thickness * 2, options),
+      this.matter.add.rectangle(this.arenaSize / 2, inset - thickness / 2, innerWidth, thickness, options),
+      this.matter.add.rectangle(this.arenaSize / 2, this.arenaSize - inset + thickness / 2, innerWidth, thickness, options),
     ];
     for (const wall of this.walls) {
       wall.collisionFilter.category = COLLISION.wall;
@@ -261,8 +264,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
     for (const fighter of this.aliveFighters()) {
       fighter.orb.setPosition(
-        Phaser.Math.Clamp(fighter.x, inset + ARENA.orbRadius, ARENA.width - inset - ARENA.orbRadius),
-        Phaser.Math.Clamp(fighter.y, inset + ARENA.orbRadius, ARENA.height - inset - ARENA.orbRadius),
+        Phaser.Math.Clamp(fighter.x, inset + ARENA.orbRadius, this.arenaSize - inset - ARENA.orbRadius),
+        Phaser.Math.Clamp(fighter.y, inset + ARENA.orbRadius, this.arenaSize - inset - ARENA.orbRadius),
       );
     }
   }
@@ -342,7 +345,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     for (const projectile of this.projectiles) {
       projectile.update(now);
       if (!projectile.alive) continue;
-      if (projectile.x < inset || projectile.x > ARENA.width - inset || projectile.y < inset || projectile.y > ARENA.height - inset) {
+      if (projectile.x < inset || projectile.x > this.arenaSize - inset || projectile.y < inset || projectile.y > this.arenaSize - inset) {
         projectile.destroy();
         continue;
       }
@@ -440,8 +443,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         fighter.y,
         body.velocity,
         this.arenaInset,
-        ARENA.width,
-        ARENA.height,
+        this.arenaSize,
+        this.arenaSize,
         ARENA.orbRadius,
         ARENA.minSpeed * this.globalSpeed,
       );
