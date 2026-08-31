@@ -1,0 +1,48 @@
+import type { WeaponType } from '../types';
+
+export interface WeaponProgress {
+  damage: number;
+  range: number;
+  angularSpeed: number;
+  burstSize: number;
+}
+
+export function progressAfterHit(type: WeaponType, current: WeaponProgress): WeaponProgress {
+  switch (type) {
+    case 'sword': return { ...current, damage: current.damage + 1 };
+    case 'dagger': return { ...current, angularSpeed: current.angularSpeed + 0.2 };
+    case 'spear': return { ...current, damage: current.damage + 0.5, range: current.range + 0.5 };
+    case 'bow': return { ...current, burstSize: current.burstSize + 1 };
+  }
+}
+
+export function progressionLabel(type: WeaponType, progress: WeaponProgress): string {
+  switch (type) {
+    case 'sword': return `DAÑO ${format(progress.damage)}`;
+    case 'dagger': return `GIRO ${format(progress.angularSpeed)}×`;
+    case 'spear': return `DAÑO ${format(progress.damage)} · RANGO ${format(progress.range)}`;
+    case 'bow': return `RÁFAGA ×${progress.burstSize}`;
+  }
+}
+
+function format(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+export class ContactCooldowns {
+  private readonly contacts = new Map<string, number>();
+
+  canTrigger(attackerId: string, targetId: string, now: number, cooldownMs: number): boolean {
+    const key = `${attackerId}>${targetId}`;
+    const previous = this.contacts.get(key) ?? -Infinity;
+    if (now - previous < cooldownMs) return false;
+    this.contacts.set(key, now);
+    return true;
+  }
+
+  clearFor(fighterId: string): void {
+    for (const key of this.contacts.keys()) {
+      if (key.includes(fighterId)) this.contacts.delete(key);
+    }
+  }
+}
