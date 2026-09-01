@@ -68,7 +68,8 @@ export const KATANA = {
   cutDamage: 1,
   cutSpacingMs: 85,
 } as const;
-export const JOUST = { chargeIntervalMs: 4_000, chargeDurationMs: 650, chargeSpeed: 11 } as const;
+export const JOUST = { chargeIntervalMs: 2_800, chargeDurationMs: 1_050, chargeSpeed: 11 } as const;
+export const SHURIKEN = { fireIntervalMs: 1_450 } as const;
 
 export function fireballExplosionRadius(size: number): number {
   return FIREBALL.baseExplosionRadius + Math.max(0, size - 1) * FIREBALL.explosionRadiusGrowth;

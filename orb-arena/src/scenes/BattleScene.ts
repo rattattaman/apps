@@ -3,7 +3,7 @@ import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, TURRET, UNARMED } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -483,7 +483,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         continue;
       }
       if (fighter.selection.weapon === 'shuriken') {
-        this.nextShotAt.set(fighter.id, now + PROJECTILES.fireIntervalMs);
+        this.nextShotAt.set(fighter.id, now + SHURIKEN.fireIntervalMs);
         const start = fighter.weapon.segment().end;
         this.projectiles.push(new Projectile(this, fighter, fighter.weapon.damage, start.x, start.y, fighter.weapon.angle, this.projectileSequence++, 'shuriken', 0, Math.floor(fighter.weapon.shurikenBounces)));
         this.audio.shot();
