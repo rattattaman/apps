@@ -3,7 +3,7 @@ import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, PROJECTILES, SHIELD, UNARMED } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, KATANA, PROJECTILES, SHIELD, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -25,6 +25,13 @@ interface PoisonEffect {
   nextTickAt: number;
 }
 
+interface TurretState {
+  owner: Combatant;
+  sprite: Phaser.Physics.Matter.Image;
+  angle: number;
+  nextShotAt: number;
+}
+
 const PREVIEW_CONFIG: BattleConfig = {
   seed: 'ORB-ARENA', startingHealth: 100, chaosMode: false, fighters: DEFAULT_FIGHTERS,
 };
@@ -32,6 +39,7 @@ const PREVIEW_CONFIG: BattleConfig = {
 export class BattleScene extends Phaser.Scene implements ChaosHost {
   private fighters: Combatant[] = [];
   private projectiles: Projectile[] = [];
+  private turrets: TurretState[] = [];
   private walls: MatterJS.BodyType[] = [];
   private readonly cooldowns = new ContactCooldowns();
   private readonly audio = new SoundEngine();
@@ -68,6 +76,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.arenaBorder = this.add.graphics().setDepth(1);
     this.createWalls();
     this.createFighters();
+    this.createTurrets();
     this.matter.world.on('collisionstart', this.onCollisionStart, this);
     this.matter.world.on('afterupdate', this.resolveWallContacts, this);
     this.startedAt = this.time.now;
@@ -84,6 +93,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
     const elapsed = time - this.startedAt;
     for (const fighter of this.fighters) fighter.update(deltaSeconds, this.spinDirection, this.globalSpeed);
+    this.updateTurrets(time, deltaSeconds);
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
     this.updateParries(time);
@@ -180,6 +190,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.random = new SeededRandom(this.battleConfig.seed);
     this.fighters = [];
     this.projectiles = [];
+    this.turrets = [];
     this.walls = [];
     this.chaosController = null;
     this.arenaInset = ARENA.padding;
@@ -221,6 +232,22 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       graphics.generateTexture('fireball', 28, 28);
       graphics.destroy();
     }
+    if (!this.textures.exists('bolt')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      graphics.fillStyle(0x92ddff, 1).fillRect(2, 4, 22, 4);
+      graphics.fillStyle(0xe9f9ff, 1).fillTriangle(31, 6, 22, 1, 22, 11);
+      graphics.generateTexture('bolt', 32, 12);
+      graphics.destroy();
+    }
+    if (!this.textures.exists('turret')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      graphics.fillStyle(0x28303b, 1).fillCircle(32, 32, TURRET.radius);
+      graphics.lineStyle(5, 0xf0a04b, 0.9).strokeCircle(32, 32, TURRET.radius - 4);
+      graphics.fillStyle(0xb9c6d3, 1).fillRect(29, 8, 7, 27);
+      graphics.fillStyle(0xeff7ff, 0.9).fillCircle(32, 32, 7);
+      graphics.generateTexture('turret', 64, 64);
+      graphics.destroy();
+    }
   }
 
   private createFighters(): void {
@@ -237,6 +264,65 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       this.nextShotAt.set(fighter.id, this.time.now + this.random.between(700, PROJECTILES.fireIntervalMs));
       return fighter;
     });
+  }
+
+  private createTurrets(): void {
+    const inset = ARENA.padding + TURRET.radius + 4;
+    this.turrets = this.fighters
+      .filter((fighter) => fighter.selection.weapon === 'wrench')
+      .map((owner, index) => {
+        const towardCenter = Math.atan2(this.arenaSize / 2 - owner.y, this.arenaSize / 2 - owner.x);
+        const x = Phaser.Math.Clamp(
+          owner.x + Math.cos(towardCenter) * TURRET.placementDistance,
+          inset,
+          this.arenaSize - inset,
+        );
+        const y = Phaser.Math.Clamp(
+          owner.y + Math.sin(towardCenter) * TURRET.placementDistance,
+          inset,
+          this.arenaSize - inset,
+        );
+        const sprite = this.matter.add.image(x, y, 'turret', undefined, {
+          shape: { type: 'circle', radius: TURRET.radius },
+          isStatic: true,
+          restitution: 1,
+          friction: 0,
+          label: `turret-${index}`,
+        });
+        sprite.setCollisionCategory(COLLISION.turret).setCollidesWith(COLLISION.fighter).setDepth(4);
+        return {
+          owner,
+          sprite,
+          angle: this.random.between(0, Math.PI * 2),
+          nextShotAt: this.time.now + this.random.between(450, TURRET.fireIntervalMs),
+        };
+      });
+  }
+
+  private updateTurrets(now: number, deltaSeconds: number): void {
+    for (const turret of this.turrets) {
+      turret.angle += TURRET.angularSpeed * this.spinDirection * deltaSeconds;
+      turret.sprite.setRotation(turret.angle + Math.PI / 2);
+      if (now < turret.nextShotAt) continue;
+      turret.nextShotAt = now + TURRET.fireIntervalMs;
+      const count = this.projectileMultiplier;
+      for (let index = 0; index < count; index += 1) {
+        const offset = count === 1 ? 0 : (index - (count - 1) / 2) * 0.11;
+        const angle = turret.angle + offset;
+        const distance = TURRET.radius + 12;
+        this.projectiles.push(new Projectile(
+          this,
+          turret.owner,
+          TURRET.projectileDamage,
+          turret.sprite.x + Math.cos(angle) * distance,
+          turret.sprite.y + Math.sin(angle) * distance,
+          angle,
+          this.projectileSequence++,
+          'bolt',
+        ));
+      }
+      this.audio.shot();
+    }
   }
 
   private spawnPositions(count: number): Array<{ x: number; y: number }> {
@@ -302,6 +388,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
           && segmentDistanceSquared(segment, target.weapon.segment()) <= (SHIELD.thickness + 5) ** 2) {
           if (this.cooldowns.canTrigger(`shield-${target.id}`, attacker.id, now, ARENA.weaponHitCooldownMs)) {
             const impact = target.weapon.segment().start;
+            if (attacker.selection.weapon === 'katana') {
+              this.showWeaponProgress(attacker, attacker.weapon.registerHit());
+            }
             this.applyReflectedDamage(target, attacker, attacker.weapon.damage, impact.x, impact.y);
           }
           continue;
@@ -309,6 +398,10 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         const hitRadius = ARENA.orbRadius + 7;
         if (pointToSegmentDistanceSquared(target, segment) > hitRadius * hitRadius) continue;
         if (!this.cooldowns.canTrigger(attacker.id, target.id, now, ARENA.weaponHitCooldownMs)) continue;
+        if (attacker.selection.weapon === 'katana') {
+          this.applyKatanaStrike(attacker, target, segment.end.x, segment.end.y);
+          continue;
+        }
         const knockback = attacker.selection.weapon === 'spear' ? 2.5 : 1.05;
         this.applyDamage(attacker, target, attacker.weapon.damage, knockback, segment.end.x, segment.end.y);
         if (attacker.selection.weapon === 'scythe' && target.alive) this.applyPoison(attacker, target);
@@ -326,8 +419,10 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
           || ['shield', 'unarmed'].includes(second.selection.weapon)) continue;
         if (segmentDistanceSquared(first.weapon.segment(), second.weapon.segment()) > 100) continue;
         if (!this.cooldowns.canTrigger(`parry-${first.id}`, second.id, now, ARENA.parryCooldownMs)) continue;
-        first.weapon.parry();
-        second.weapon.parry();
+        const firstProgress = first.weapon.parry();
+        const secondProgress = second.weapon.parry();
+        if (firstProgress) this.showWeaponProgress(first, firstProgress);
+        if (secondProgress) this.showWeaponProgress(second, secondProgress);
         const angle = Math.atan2(second.y - first.y, second.x - first.x);
         this.addVelocity(first, angle + Math.PI, 0.6);
         this.addVelocity(second, angle, 0.6);
@@ -416,7 +511,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
           break;
         }
         projectile.deflect(defender.weapon.angle + Math.PI / 2, now);
-        defender.weapon.parry();
+        const progression = defender.weapon.parry();
+        if (progression) this.showWeaponProgress(defender, progression);
         this.spark(projectile.x, projectile.y, 0xd9e6ff, 4);
         this.audio.parry();
         blocked = true;
@@ -428,6 +524,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > (ARENA.orbRadius + projectile.hitRadius) ** 2) continue;
         if (projectile.kind === 'fireball') {
           this.explodeFireball(projectile);
+        } else if (projectile.kind === 'bolt') {
+          this.applyTurretDamage(projectile.owner, target, projectile.damage, projectile.x, projectile.y);
         } else {
           this.applyDamage(projectile.owner, target, projectile.damage, 0.8, projectile.x, projectile.y);
         }
@@ -436,6 +534,65 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       }
     }
     this.projectiles = this.projectiles.filter((projectile) => projectile.alive);
+  }
+
+  private applyKatanaStrike(attacker: Combatant, target: Combatant, impactX: number, impactY: number): void {
+    if (!attacker.alive || !target.alive || this.ending) return;
+    const cuts = attacker.weapon.cutCount;
+    const progression = attacker.weapon.registerHit();
+    const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
+    this.addVelocity(target, angle, 0.7);
+    this.spark(impactX, impactY, attacker.selection.color, 9);
+    this.showWeaponProgress(attacker, progression);
+    gameEvents.emit('battle:event', {
+      kind: 'hit', title: `${attacker.selection.name} DESENVAINA`,
+      detail: `${cuts} ${cuts === 1 ? 'corte' : 'cortes'} de ${KATANA.cutDamage} de daño`,
+    });
+    for (let index = 0; index < cuts; index += 1) {
+      this.time.delayedCall((index + 1) * KATANA.cutSpacingMs, () => {
+        this.applyKatanaCut(attacker, target);
+      });
+    }
+  }
+
+  private applyKatanaCut(attacker: Combatant, target: Combatant): void {
+    if (!target.alive || this.ending) return;
+    const damage = KATANA.cutDamage * (this.suddenDeath ? 2 : 1);
+    const applied = target.damage(damage);
+    const slashAngle = this.random.between(-1.2, 1.2);
+    const slash = this.add.graphics().setPosition(target.x, target.y).setRotation(slashAngle).setDepth(18);
+    slash.lineStyle(4, 0xff6cb4, 0.95).beginPath().moveTo(-25, 0).lineTo(25, 0).strokePath();
+    this.tweens.add({
+      targets: slash, alpha: 0, scaleX: 1.35, duration: 190, ease: 'Quad.easeOut',
+      onComplete: () => slash.destroy(),
+    });
+    this.audio.impact(0.35);
+    this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#ffb4d8', true);
+    this.emitHud(true);
+    if (target.health <= 0) this.eliminate(target, attacker);
+  }
+
+  private applyTurretDamage(owner: Combatant, target: Combatant, baseDamage: number, impactX: number, impactY: number): void {
+    if (!target.alive || this.ending) return;
+    const damage = baseDamage * (this.suddenDeath ? 2 : 1);
+    const applied = target.damage(damage);
+    const angle = Math.atan2(target.y - impactY, target.x - impactX);
+    this.addVelocity(target, angle, 0.75);
+    this.audio.impact(0.45);
+    this.spark(impactX, impactY, 0x92ddff, 7);
+    this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#b9ecff');
+    gameEvents.emit('battle:event', {
+      kind: 'hit', title: `TORRETA DE ${owner.selection.name}`,
+      detail: `${Math.round(applied)} de daño`,
+    });
+    this.emitHud(true);
+    if (target.health <= 0) this.eliminate(target, owner);
+  }
+
+  private showWeaponProgress(fighter: Combatant, progression: string): void {
+    if (!fighter.alive) return;
+    this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.selection.colorCss, true);
+    this.emitHud(true);
   }
 
   private applyDamage(attacker: Combatant, target: Combatant, baseDamage: number, knockback: number, impactX: number, impactY: number): void {
@@ -458,22 +615,28 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private applyReflectedDamage(defender: Combatant, attacker: Combatant, baseDamage: number, impactX: number, impactY: number): void {
-    if (!defender.alive || !attacker.alive || this.ending) return;
+    if (!defender.alive || this.ending) return;
     const damage = baseDamage * (this.suddenDeath ? 2 : 1);
-    const applied = attacker.damage(damage);
-    const angle = Math.atan2(attacker.y - defender.y, attacker.x - defender.x);
-    this.addVelocity(attacker, angle, 1.4);
+    const applied = attacker.alive ? attacker.damage(damage) : 0;
+    if (attacker.alive) {
+      const angle = Math.atan2(attacker.y - defender.y, attacker.x - defender.x);
+      this.addVelocity(attacker, angle, 1.4);
+    }
     const progression = defender.weapon.registerHit();
     this.audio.parry();
     this.spark(impactX, impactY, defender.selection.color, 12);
-    this.floatText(attacker.x, attacker.y - 28, `↩ −${Math.round(applied)}`, defender.selection.colorCss);
+    if (attacker.alive) {
+      this.floatText(attacker.x, attacker.y - 28, `↩ −${Math.round(applied)}`, defender.selection.colorCss);
+    }
     this.floatText(defender.x, defender.y - 40, `↑ ${progression}`, defender.selection.colorCss, true);
     gameEvents.emit('battle:event', {
       kind: 'parry', title: `${defender.selection.name} REFLEJA`,
-      detail: `${Math.round(applied)} de daño devuelto · ${progression}`,
+      detail: attacker.alive
+        ? `${Math.round(applied)} de daño devuelto · ${progression}`
+        : `Proyectil bloqueado · ${progression}`,
     });
     this.emitHud(true);
-    if (attacker.health <= 0) this.eliminate(attacker, defender);
+    if (attacker.alive && attacker.health <= 0) this.eliminate(attacker, defender);
   }
 
   private explodeFireball(projectile: Projectile): void {

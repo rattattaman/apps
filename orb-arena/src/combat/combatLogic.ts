@@ -8,6 +8,7 @@ export interface WeaponProgress {
   explosionSize: number;
   shieldSize: number;
   maxSpeed: number;
+  cutCount: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -24,6 +25,8 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'shield': return { ...current, shieldSize: current.shieldSize + 1 };
     case 'scythe': return current;
     case 'unarmed': return { ...current, maxSpeed: current.maxSpeed + 0.5 };
+    case 'wrench': return current;
+    case 'katana': return { ...current, cutCount: current.cutCount + 1 };
   }
 }
 
@@ -37,6 +40,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'shield': return `ESCUDO ${progress.shieldSize}`;
     case 'scythe': return 'VENENO +1';
     case 'unarmed': return `VEL. MÁX ${format(progress.maxSpeed)}`;
+    case 'wrench': return 'TORRETA ACTIVA';
+    case 'katana': return `CORTES ×${progress.cutCount}`;
   }
 }
 

@@ -85,7 +85,7 @@ function renderRoster(): void {
   const count = Number(fighterCount.value);
   rosterEditor.innerHTML = DEFAULT_FIGHTERS.slice(0, count).map((fighter, index) => `
     <label class="fighter-picker" style="--fighter-color:${fighter.colorCss}">
-      <span class="fighter-number">0${index + 1}</span>
+      <span class="fighter-number">${String(index + 1).padStart(2, '0')}</span>
       <span class="fighter-swatch"></span>
       <span class="fighter-copy"><b>${fighter.name}</b><small>Temporada ${fighter.season}</small></span>
       <select name="weapon-${index}" aria-label="Arma de ${fighter.name}">
@@ -140,7 +140,11 @@ function initialHud(config: BattleConfig): FighterHudState[] {
             ? 'VENENO +1'
             : fighter.weapon === 'unarmed'
               ? `VEL. MÁX ${WEAPONS.unarmed.initialMaxSpeed ?? 4.2}`
-              : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
+              : fighter.weapon === 'wrench'
+                ? 'TORRETA ACTIVA'
+                : fighter.weapon === 'katana'
+                  ? `CORTES ×${WEAPONS.katana.initialCutCount ?? 1}`
+                  : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }
 

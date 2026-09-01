@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arenaSizeForFighterCount, fireballExplosionRadius, SEASON_ONE_FIGHTERS, shieldWidthForSize, UNARMED, WEAPONS } from './balance';
+import { arenaSizeForFighterCount, fireballExplosionRadius, SEASON_ONE_FIGHTERS, SEASON_TWO_FIGHTERS, shieldWidthForSize, UNARMED, WEAPONS } from './balance';
 
 describe('arenaSizeForFighterCount', () => {
   it('concentra la arena cuando participan menos orbes', () => {
@@ -10,6 +10,8 @@ describe('arenaSizeForFighterCount', () => {
     expect(arenaSizeForFighterCount(6)).toBe(1020);
     expect(arenaSizeForFighterCount(7)).toBe(1120);
     expect(arenaSizeForFighterCount(8)).toBe(1220);
+    expect(arenaSizeForFighterCount(9)).toBe(1320);
+    expect(arenaSizeForFighterCount(10)).toBe(1420);
   });
 
   it('inicia varita y escudo en nivel uno', () => {
@@ -33,6 +35,12 @@ describe('arenaSizeForFighterCount', () => {
     expect(SEASON_ONE_FIGHTERS).toHaveLength(8);
     expect(SEASON_ONE_FIGHTERS.every((fighter) => fighter.season === 1)).toBe(true);
     expect(UNARMED.gravityForce).toBe(0.00045);
+  });
+
+  it('inicia la temporada dos con llave inglesa y katana', () => {
+    expect(SEASON_TWO_FIGHTERS).toHaveLength(2);
+    expect(SEASON_TWO_FIGHTERS.every((fighter) => fighter.season === 2)).toBe(true);
+    expect(WEAPONS.katana.initialCutCount).toBe(1);
   });
 });
 

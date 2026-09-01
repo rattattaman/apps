@@ -8,6 +8,7 @@ export const COLLISION = {
   fighter: 0x0001,
   wall: 0x0002,
   projectile: 0x0004,
+  turret: 0x0008,
 } as const;
 
 export class Combatant {
@@ -42,7 +43,8 @@ export class Combatant {
       frictionAir: 0,
     });
     this.orb.setTint(selection.color).setBounce(1).setFriction(0, 0, 0).setFixedRotation();
-    this.orb.setCollisionCategory(COLLISION.fighter).setCollidesWith([COLLISION.fighter, COLLISION.wall]);
+    this.orb.setCollisionCategory(COLLISION.fighter)
+      .setCollidesWith([COLLISION.fighter, COLLISION.wall, COLLISION.turret]);
     const body = this.orb.body as MatterJS.BodyType;
     body.label = this.id;
     this.ring = scene.add.graphics().setDepth(3);

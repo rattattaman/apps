@@ -26,6 +26,7 @@ export class OrbitWeapon {
       explosionSize: definition.initialExplosionSize ?? 0,
       shieldSize: definition.initialShieldSize ?? 0,
       maxSpeed: definition.initialMaxSpeed ?? ARENA.maxSpeed,
+      cutCount: definition.initialCutCount ?? 0,
     };
     this.graphics = scene.add.graphics().setDepth(5);
   }
@@ -35,6 +36,7 @@ export class OrbitWeapon {
   get burstSize(): number { return this.progress.burstSize; }
   get explosionSize(): number { return this.progress.explosionSize; }
   get maxSpeed(): number { return this.progress.maxSpeed; }
+  get cutCount(): number { return this.progress.cutCount; }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
 
@@ -48,9 +50,11 @@ export class OrbitWeapon {
     return this.progressionText;
   }
 
-  parry(): void {
+  parry(): string | null {
     this.direction *= -1;
     this.angle += 0.22 * this.direction;
+    if (this.owner.selection.weapon !== 'katana') return null;
+    return this.registerHit();
   }
 
   grow(factor: number): void {
@@ -118,6 +122,25 @@ export class OrbitWeapon {
         .beginPath().arc(length - 8, -15, 20, -0.15, 1.65, false).strokePath()
         .lineStyle(2, 0xeaffd7, 0.8)
         .beginPath().arc(length - 8, -15, 16, -0.1, 1.55, false).strokePath();
+      return;
+    }
+    if (type === 'wrench') {
+      this.graphics.lineStyle(7, 0x9aa5b1, 1)
+        .beginPath().moveTo(0, 0).lineTo(length - 14, 0).strokePath()
+        .lineStyle(7, definition.color, 1)
+        .beginPath().moveTo(length - 17, -11).lineTo(length - 6, 0).lineTo(length - 17, 11).strokePath()
+        .lineStyle(4, 0xe9edf2, 0.85)
+        .beginPath().moveTo(length - 5, -13).lineTo(length, -5)
+        .moveTo(length - 5, 13).lineTo(length, 5).strokePath();
+      return;
+    }
+    if (type === 'katana') {
+      this.graphics.lineStyle(4, definition.color, 1)
+        .beginPath().moveTo(6, 0).lineTo(length, 0).strokePath()
+        .lineStyle(2, 0xffedf7, 0.95)
+        .beginPath().moveTo(8, -2).lineTo(length, -2).strokePath()
+        .lineStyle(5, 0x372334, 1)
+        .beginPath().moveTo(-2, -9).lineTo(-2, 9).strokePath();
       return;
     }
     const thickness = type === 'dagger' ? 7 : type === 'spear' ? 4 : 6;

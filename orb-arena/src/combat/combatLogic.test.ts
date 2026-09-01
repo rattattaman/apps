@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { burstShotDelays, ContactCooldowns, progressAfterHit, type WeaponProgress } from './combatLogic';
 
 const base: WeaponProgress = {
-  damage: 8, range: 60, angularSpeed: 2, burstSize: 1, explosionSize: 1, shieldSize: 1, maxSpeed: 3,
+  damage: 8, range: 60, angularSpeed: 2, burstSize: 1, explosionSize: 1, shieldSize: 1, maxSpeed: 3, cutCount: 1,
 };
 
 describe('progresión de armas', () => {
@@ -15,6 +15,8 @@ describe('progresión de armas', () => {
     expect(progressAfterHit('shield', base)).toMatchObject({ shieldSize: 2 });
     expect(progressAfterHit('scythe', base)).toEqual(base);
     expect(progressAfterHit('unarmed', base)).toMatchObject({ maxSpeed: 3.5 });
+    expect(progressAfterHit('wrench', base)).toEqual(base);
+    expect(progressAfterHit('katana', base)).toMatchObject({ cutCount: 2 });
   });
 });
 

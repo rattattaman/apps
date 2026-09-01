@@ -50,7 +50,7 @@ button { color: inherit; }
 .seed-chip { border-left: 1px solid #343949; margin-left: 8px; padding-left: 18px; color: #6f7789; }
 .seed-chip b { color: #c9ced8; }
 
-.game-shell { width: min(1300px, 100%); margin: 0 auto; padding: 18px clamp(10px, 2vw, 30px) 28px; }
+.game-shell { width: min(1500px, 100%); margin: 0 auto; padding: 18px clamp(10px, 2vw, 30px) 28px; }
 .scoreboard { display: grid; grid-template-columns: repeat(var(--fighter-count, 4), minmax(130px, 1fr)); gap: 9px; margin-bottom: 12px; }
 .fighter-card { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 58px; padding: 10px 12px; background: linear-gradient(145deg, rgba(255,255,255,.035), transparent), #11141e; border: 1px solid #242a38; border-radius: 7px; }
 .fighter-card.eliminated { filter: grayscale(1); opacity: .32; }

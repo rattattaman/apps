@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { COLLISION, type Combatant } from '../combat/Combatant';
 import { FIREBALL, PROJECTILES } from '../config/balance';
 
-export type ProjectileKind = 'arrow' | 'fireball';
+export type ProjectileKind = 'arrow' | 'fireball' | 'bolt';
 
 export class Projectile {
   readonly id: string;
@@ -43,7 +43,7 @@ export class Projectile {
   update(now: number): void {
     if (!this.alive) return;
     const body = this.sprite.body as MatterJS.BodyType;
-    if (this.kind === 'arrow') this.sprite.setRotation(Math.atan2(body.velocity.y, body.velocity.x));
+    if (this.kind !== 'fireball') this.sprite.setRotation(Math.atan2(body.velocity.y, body.velocity.x));
     if (now - this.bornAt > PROJECTILES.lifetimeMs) this.destroy();
   }
 

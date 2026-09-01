@@ -19,7 +19,9 @@ export function arenaSizeForFighterCount(count: number): number {
   if (count === 5) return 920;
   if (count === 6) return 1020;
   if (count === 7) return 1120;
-  return 1220;
+  if (count === 8) return 1220;
+  if (count === 9) return 1320;
+  return 1420;
 }
 
 export const PROJECTILES = {
@@ -52,6 +54,19 @@ export const UNARMED = {
   maxSpeedGrowth: 0.5,
   gravityForce: 0.00045,
   hitCooldownMs: 360,
+} as const;
+
+export const TURRET = {
+  radius: 25,
+  placementDistance: 105,
+  angularSpeed: 1.85,
+  fireIntervalMs: 1_050,
+  projectileDamage: 1,
+} as const;
+
+export const KATANA = {
+  cutDamage: 1,
+  cutSpacingMs: 85,
 } as const;
 
 export function fireballExplosionRadius(size: number): number {
@@ -103,6 +118,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     ability: 'Daño igual a velocidad · máximo +0,5 por golpe', damage: 0, range: 0, angularSpeed: 0,
     initialMaxSpeed: UNARMED.initialMaxSpeed,
   },
+  wrench: {
+    type: 'wrench', name: 'Llave inglesa', glyph: '⌕', color: 0xf0a04b,
+    ability: 'Genera una torreta giratoria permanente', damage: 1, range: 55, angularSpeed: 2.9,
+  },
+  katana: {
+    type: 'katana', name: 'Katana', glyph: '⼑', color: 0xff55a6,
+    ability: 'Golpes y paradas añaden un corte', damage: 1, range: 70, angularSpeed: 3.35, initialCutCount: 1,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -116,4 +139,9 @@ export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
   { name: 'GRAV', weapon: 'unarmed', color: 0xdbe3ef, colorCss: '#dbe3ef', season: 1 },
 ];
 
-export const DEFAULT_FIGHTERS = SEASON_ONE_FIGHTERS;
+export const SEASON_TWO_FIGHTERS: FighterSelection[] = [
+  { name: 'TORQ', weapon: 'wrench', color: 0xf0a04b, colorCss: '#f0a04b', season: 2 },
+  { name: 'KAGE', weapon: 'katana', color: 0xff55a6, colorCss: '#ff55a6', season: 2 },
+];
+
+export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS];
