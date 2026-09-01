@@ -139,7 +139,7 @@ function initialHud(config: BattleConfig): FighterHudState[] {
           : fighter.weapon === 'scythe'
             ? 'VENENO +1'
             : fighter.weapon === 'unarmed'
-              ? `VEL. MÁX ${WEAPONS.unarmed.initialMaxSpeed ?? 3}`
+              ? `VEL. MÁX ${WEAPONS.unarmed.initialMaxSpeed ?? 4.2}`
               : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }

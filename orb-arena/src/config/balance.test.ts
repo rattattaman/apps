@@ -24,8 +24,8 @@ describe('arenaSizeForFighterCount', () => {
     expect(shieldWidthForSize(2)).toBeGreaterThan(shieldWidthForSize(1));
   });
 
-  it('inicia el desarmado con velocidad máxima tres y la guadaña con daño uno', () => {
-    expect(WEAPONS.unarmed.initialMaxSpeed).toBe(3);
+  it('inicia el desarmado con velocidad máxima mejorada y la guadaña con daño uno', () => {
+    expect(WEAPONS.unarmed.initialMaxSpeed).toBe(4.2);
     expect(WEAPONS.scythe.damage).toBe(1);
   });
 

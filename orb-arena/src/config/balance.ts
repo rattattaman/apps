@@ -48,7 +48,7 @@ export const SHIELD = {
 } as const;
 
 export const UNARMED = {
-  initialMaxSpeed: 3,
+  initialMaxSpeed: 4.2,
   maxSpeedGrowth: 0.5,
   gravityForce: 0.00045,
   hitCooldownMs: 360,
