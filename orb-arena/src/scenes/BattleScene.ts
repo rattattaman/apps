@@ -546,7 +546,6 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (!attacker.alive || !target.alive || this.ending) return;
     const cuts = attacker.weapon.cutCount;
     const progression = attacker.weapon.registerHit();
-    if (attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
     this.addVelocity(target, angle, 0.7);
     this.spark(impactX, impactY, attacker.selection.color, 9);
@@ -609,6 +608,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
     this.addVelocity(target, angle, knockback);
     const progression = attacker.weapon.registerHit();
+    if (attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
     this.audio.impact(Math.min(3, damage / 7));
     this.spark(impactX, impactY, attacker.selection.color, 9);
     this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#ffffff');
