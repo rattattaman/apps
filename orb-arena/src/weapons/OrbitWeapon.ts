@@ -25,6 +25,7 @@ export class OrbitWeapon {
       burstSize: definition.initialBurstSize ?? 1,
       explosionSize: definition.initialExplosionSize ?? 0,
       shieldSize: definition.initialShieldSize ?? 0,
+      maxSpeed: definition.initialMaxSpeed ?? ARENA.maxSpeed,
     };
     this.graphics = scene.add.graphics().setDepth(5);
   }
@@ -33,6 +34,7 @@ export class OrbitWeapon {
   get range(): number { return this.progress.range * this.rangeScale; }
   get burstSize(): number { return this.progress.burstSize; }
   get explosionSize(): number { return this.progress.explosionSize; }
+  get maxSpeed(): number { return this.progress.maxSpeed; }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
 
@@ -77,6 +79,10 @@ export class OrbitWeapon {
   private draw(): void {
     const type = this.owner.selection.weapon;
     const definition = WEAPONS[type];
+    if (type === 'unarmed') {
+      this.graphics.clear();
+      return;
+    }
     if (type === 'shield') {
       const segment = this.shieldSegment();
       this.graphics.clear().setPosition(segment.start.x, segment.start.y).setRotation(this.angle + Math.PI / 2)
@@ -103,6 +109,15 @@ export class OrbitWeapon {
         .beginPath().moveTo(0, 0).lineTo(length - 8, 0).strokePath()
         .fillStyle(definition.color, 0.22).fillCircle(length, 0, 13)
         .fillStyle(0xffd39b, 1).fillCircle(length, 0, 6);
+      return;
+    }
+    if (type === 'scythe') {
+      this.graphics.lineStyle(5, 0x7d8791, 1)
+        .beginPath().moveTo(0, 0).lineTo(length - 8, 0).strokePath()
+        .lineStyle(8, definition.color, 0.95)
+        .beginPath().arc(length - 8, -15, 20, -0.15, 1.65, false).strokePath()
+        .lineStyle(2, 0xeaffd7, 0.8)
+        .beginPath().arc(length - 8, -15, 16, -0.1, 1.55, false).strokePath();
       return;
     }
     const thickness = type === 'dagger' ? 7 : type === 'spear' ? 4 : 6;

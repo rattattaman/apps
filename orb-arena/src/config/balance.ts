@@ -17,7 +17,9 @@ export function arenaSizeForFighterCount(count: number): number {
   if (count === 3) return 710;
   if (count === 4) return ARENA.width;
   if (count === 5) return 920;
-  return 1020;
+  if (count === 6) return 1020;
+  if (count === 7) return 1120;
+  return 1220;
 }
 
 export const PROJECTILES = {
@@ -43,6 +45,13 @@ export const SHIELD = {
   baseWidth: 64,
   widthGrowth: 12,
   thickness: 11,
+} as const;
+
+export const UNARMED = {
+  initialMaxSpeed: 3,
+  maxSpeedGrowth: 0.5,
+  gravityForce: 0.00055,
+  hitCooldownMs: 360,
 } as const;
 
 export function fireballExplosionRadius(size: number): number {
@@ -85,6 +94,15 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'shield', name: 'Escudo', glyph: '◖', color: 0x5de3a1,
     ability: 'Refleja el daño y se ensancha al bloquear', damage: 0, range: 38, angularSpeed: 2.7, initialShieldSize: 1,
   },
+  scythe: {
+    type: 'scythe', name: 'Guadaña', glyph: '☾', color: 0x9bea55,
+    ability: 'Cada golpe añade 1 carga de veneno', damage: 1, range: 76, angularSpeed: 2.85,
+  },
+  unarmed: {
+    type: 'unarmed', name: 'Desarmado', glyph: '●', color: 0xe7edf5,
+    ability: 'Daño igual a velocidad · máximo +0,5 por golpe', damage: 0, range: 0, angularSpeed: 0,
+    initialMaxSpeed: UNARMED.initialMaxSpeed,
+  },
 };
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [
@@ -94,4 +112,6 @@ export const DEFAULT_FIGHTERS: FighterSelection[] = [
   { name: 'VANTA', weapon: 'bow', color: 0x9d70f8, colorCss: '#9d70f8' },
   { name: 'PYRA', weapon: 'wand', color: 0xff743d, colorCss: '#ff743d' },
   { name: 'AEGIS', weapon: 'shield', color: 0x55dda0, colorCss: '#55dda0' },
+  { name: 'NOX', weapon: 'scythe', color: 0x91e34f, colorCss: '#91e34f' },
+  { name: 'GRAV', weapon: 'unarmed', color: 0xdbe3ef, colorCss: '#dbe3ef' },
 ];

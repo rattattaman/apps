@@ -7,6 +7,7 @@ export interface WeaponProgress {
   burstSize: number;
   explosionSize: number;
   shieldSize: number;
+  maxSpeed: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -21,6 +22,8 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'bow': return { ...current, burstSize: current.burstSize + 1 };
     case 'wand': return { ...current, damage: current.damage + 1, explosionSize: current.explosionSize + 1 };
     case 'shield': return { ...current, shieldSize: current.shieldSize + 1 };
+    case 'scythe': return current;
+    case 'unarmed': return { ...current, maxSpeed: current.maxSpeed + 0.5 };
   }
 }
 
@@ -32,6 +35,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'bow': return `RÁFAGA ×${progress.burstSize}`;
     case 'wand': return `DAÑO ${format(progress.damage)} · EXPLOSIÓN ${progress.explosionSize}`;
     case 'shield': return `ESCUDO ${progress.shieldSize}`;
+    case 'scythe': return 'VENENO +1';
+    case 'unarmed': return `VEL. MÁX ${format(progress.maxSpeed)}`;
   }
 }
 

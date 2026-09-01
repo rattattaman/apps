@@ -136,7 +136,11 @@ function initialHud(config: BattleConfig): FighterHudState[] {
         ? `DAÑO ${WEAPONS.wand.damage} · EXPLOSIÓN ${WEAPONS.wand.initialExplosionSize ?? 1}`
         : fighter.weapon === 'shield'
           ? `ESCUDO ${WEAPONS.shield.initialShieldSize ?? 1}`
-          : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
+          : fighter.weapon === 'scythe'
+            ? 'VENENO +1'
+            : fighter.weapon === 'unarmed'
+              ? `VEL. MÁX ${WEAPONS.unarmed.initialMaxSpeed ?? 3}`
+              : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }
 

@@ -11,7 +11,7 @@ export interface ArenaStats {
 const EMPTY_STATS: ArenaStats = {
   battles: 0,
   victories: 0,
-  weaponWins: { sword: 0, dagger: 0, spear: 0, bow: 0, wand: 0, shield: 0 },
+  weaponWins: { sword: 0, dagger: 0, spear: 0, bow: 0, wand: 0, shield: 0, scythe: 0, unarmed: 0 },
 };
 
 export function loadStats(): ArenaStats {

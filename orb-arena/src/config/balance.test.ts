@@ -8,6 +8,8 @@ describe('arenaSizeForFighterCount', () => {
     expect(arenaSizeForFighterCount(4)).toBe(820);
     expect(arenaSizeForFighterCount(5)).toBe(920);
     expect(arenaSizeForFighterCount(6)).toBe(1020);
+    expect(arenaSizeForFighterCount(7)).toBe(1120);
+    expect(arenaSizeForFighterCount(8)).toBe(1220);
   });
 
   it('inicia varita y escudo en nivel uno', () => {
@@ -20,6 +22,11 @@ describe('arenaSizeForFighterCount', () => {
     expect(fireballExplosionRadius(1)).toBe(70);
     expect(fireballExplosionRadius(2)).toBeGreaterThan(fireballExplosionRadius(1));
     expect(shieldWidthForSize(2)).toBeGreaterThan(shieldWidthForSize(1));
+  });
+
+  it('inicia el desarmado con velocidad máxima tres y la guadaña con daño uno', () => {
+    expect(WEAPONS.unarmed.initialMaxSpeed).toBe(3);
+    expect(WEAPONS.scythe.damage).toBe(1);
   });
 });
 

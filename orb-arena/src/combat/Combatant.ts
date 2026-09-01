@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { ARENA, WEAPONS } from '../config/balance';
+import { ARENA, UNARMED, WEAPONS } from '../config/balance';
 import type { FighterSelection } from '../types';
 import type { FighterHudState } from '../events';
 import { OrbitWeapon } from '../weapons/OrbitWeapon';
@@ -17,6 +17,7 @@ export class Combatant {
   readonly selection: FighterSelection;
   readonly maxHealth: number;
   health: number;
+  poisonStacks = 0;
   alive = true;
   private readonly ring: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
@@ -57,6 +58,9 @@ export class Combatant {
   update(deltaSeconds: number, spinDirection: number, globalSpeed: number): void {
     if (!this.alive) return;
     this.weapon.update(deltaSeconds, spinDirection);
+    if (this.selection.weapon === 'unarmed') {
+      this.orb.applyForce(new Phaser.Math.Vector2(0, UNARMED.gravityForce));
+    }
     this.keepMoving(globalSpeed);
     this.ring.clear()
       .lineStyle(2, 0xffffff, 0.25).strokeCircle(this.x, this.y, ARENA.orbRadius - 4)
@@ -82,6 +86,12 @@ export class Combatant {
     return this.health - previous;
   }
 
+  addPoison(amount: number): number {
+    if (!this.alive) return this.poisonStacks;
+    this.poisonStacks += amount;
+    return this.poisonStacks;
+  }
+
   eliminate(): void {
     if (!this.alive) return;
     this.alive = false;
@@ -102,13 +112,21 @@ export class Combatant {
       health: this.health,
       maxHealth: this.maxHealth,
       alive: this.alive,
-      stat: this.weapon.progressionText,
+      stat: `${this.weapon.progressionText}${this.poisonStacks > 0 ? ` · VENENO ${this.poisonStacks}` : ''}`,
     };
   }
 
   private keepMoving(globalSpeed: number): void {
     const body = this.orb.body as MatterJS.BodyType;
     const speed = Math.hypot(body.velocity.x, body.velocity.y);
+    if (this.selection.weapon === 'unarmed') {
+      const maximum = this.weapon.maxSpeed * globalSpeed;
+      if (speed > maximum) {
+        const angle = Math.atan2(body.velocity.y, body.velocity.x);
+        this.orb.setVelocity(Math.cos(angle) * maximum, Math.sin(angle) * maximum);
+      }
+      return;
+    }
     const desiredMinimum = ARENA.minSpeed * globalSpeed;
     const maximum = ARENA.maxSpeed * globalSpeed;
     const angle = speed > 0.08 ? Math.atan2(body.velocity.y, body.velocity.x) : this.weapon.angle;
