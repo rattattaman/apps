@@ -640,7 +640,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const progression = attacker.weapon.registerHit();
     if (attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
     if (attacker.selection.weapon === 'grimoire') this.spawnClone(attacker, target);
-    if (attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain);
+    if (attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain, true);
     this.audio.impact(Math.min(3, damage / 7));
     this.spark(impactX, impactY, attacker.selection.color, 9);
     this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#ffffff');
@@ -657,7 +657,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (this.fighters.length >= 18) return;
     const angle = this.random.between(0, Math.PI * 2);
     const cloneSelection = { ...target.selection, name: `${target.selection.name}·CLON` };
-    const clone = new Combatant(this, cloneSelection, this.fighters.length, target.x + Math.cos(angle) * 54, target.y + Math.sin(angle) * 54, target.health + 2, angle);
+    const clone = new Combatant(this, cloneSelection, this.fighters.length, target.x + Math.cos(angle) * 54, target.y + Math.sin(angle) * 54, 2, angle);
+    clone.orb.setScale(0.68).setTint(source.selection.color);
     clone.weapon.copyProgressFrom(target.weapon);
     clone.orb.setVelocity(Math.cos(angle) * 3.5, Math.sin(angle) * 3.5);
     this.fighters.push(clone);

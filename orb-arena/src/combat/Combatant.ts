@@ -81,10 +81,10 @@ export class Combatant {
     return applied;
   }
 
-  heal(amount: number): number {
+  heal(amount: number, allowOverheal = false): number {
     if (!this.alive) return 0;
     const previous = this.health;
-    this.health = Math.min(this.maxHealth, this.health + amount);
+    this.health = allowOverheal ? this.health + amount : Math.min(this.maxHealth, this.health + amount);
     return this.health - previous;
   }
 
