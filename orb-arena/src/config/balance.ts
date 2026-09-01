@@ -50,7 +50,7 @@ export const SHIELD = {
 export const UNARMED = {
   initialMaxSpeed: 3,
   maxSpeedGrowth: 0.5,
-  gravityForce: 0.00055,
+  gravityForce: 0.00045,
   hitCooldownMs: 360,
 } as const;
 
@@ -105,13 +105,15 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
 };
 
-export const DEFAULT_FIGHTERS: FighterSelection[] = [
-  { name: 'SOL', weapon: 'sword', color: 0xffbf43, colorCss: '#ffbf43' },
-  { name: 'FURIA', weapon: 'dagger', color: 0xf34f64, colorCss: '#f34f64' },
-  { name: 'NEXO', weapon: 'spear', color: 0x3ac7eb, colorCss: '#3ac7eb' },
-  { name: 'VANTA', weapon: 'bow', color: 0x9d70f8, colorCss: '#9d70f8' },
-  { name: 'PYRA', weapon: 'wand', color: 0xff743d, colorCss: '#ff743d' },
-  { name: 'AEGIS', weapon: 'shield', color: 0x55dda0, colorCss: '#55dda0' },
-  { name: 'NOX', weapon: 'scythe', color: 0x91e34f, colorCss: '#91e34f' },
-  { name: 'GRAV', weapon: 'unarmed', color: 0xdbe3ef, colorCss: '#dbe3ef' },
+export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
+  { name: 'SOL', weapon: 'sword', color: 0xffbf43, colorCss: '#ffbf43', season: 1 },
+  { name: 'FURIA', weapon: 'dagger', color: 0xf34f64, colorCss: '#f34f64', season: 1 },
+  { name: 'NEXO', weapon: 'spear', color: 0x3ac7eb, colorCss: '#3ac7eb', season: 1 },
+  { name: 'VANTA', weapon: 'bow', color: 0x9d70f8, colorCss: '#9d70f8', season: 1 },
+  { name: 'PYRA', weapon: 'wand', color: 0xff743d, colorCss: '#ff743d', season: 1 },
+  { name: 'AEGIS', weapon: 'shield', color: 0x55dda0, colorCss: '#55dda0', season: 1 },
+  { name: 'NOX', weapon: 'scythe', color: 0x91e34f, colorCss: '#91e34f', season: 1 },
+  { name: 'GRAV', weapon: 'unarmed', color: 0xdbe3ef, colorCss: '#dbe3ef', season: 1 },
 ];
+
+export const DEFAULT_FIGHTERS = SEASON_ONE_FIGHTERS;

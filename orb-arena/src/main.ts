@@ -87,7 +87,7 @@ function renderRoster(): void {
     <label class="fighter-picker" style="--fighter-color:${fighter.colorCss}">
       <span class="fighter-number">0${index + 1}</span>
       <span class="fighter-swatch"></span>
-      <span class="fighter-copy"><b>${fighter.name}</b><small>Combatiente</small></span>
+      <span class="fighter-copy"><b>${fighter.name}</b><small>Temporada ${fighter.season}</small></span>
       <select name="weapon-${index}" aria-label="Arma de ${fighter.name}">
         ${Object.values(WEAPONS).map((weapon) => `<option value="${weapon.type}" ${fighter.weapon === weapon.type ? 'selected' : ''}>${weapon.name}</option>`).join('')}
       </select>

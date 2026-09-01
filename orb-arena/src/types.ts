@@ -7,6 +7,7 @@ export interface FighterSelection {
   weapon: WeaponType;
   color: number;
   colorCss: string;
+  season: number;
 }
 
 export interface BattleConfig {

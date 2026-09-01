@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arenaSizeForFighterCount, fireballExplosionRadius, shieldWidthForSize, WEAPONS } from './balance';
+import { arenaSizeForFighterCount, fireballExplosionRadius, SEASON_ONE_FIGHTERS, shieldWidthForSize, UNARMED, WEAPONS } from './balance';
 
 describe('arenaSizeForFighterCount', () => {
   it('concentra la arena cuando participan menos orbes', () => {
@@ -27,6 +27,12 @@ describe('arenaSizeForFighterCount', () => {
   it('inicia el desarmado con velocidad máxima tres y la guadaña con daño uno', () => {
     expect(WEAPONS.unarmed.initialMaxSpeed).toBe(3);
     expect(WEAPONS.scythe.damage).toBe(1);
+  });
+
+  it('agrupa los ocho combatientes actuales en la temporada uno', () => {
+    expect(SEASON_ONE_FIGHTERS).toHaveLength(8);
+    expect(SEASON_ONE_FIGHTERS.every((fighter) => fighter.season === 1)).toBe(true);
+    expect(UNARMED.gravityForce).toBe(0.00045);
   });
 });
 
