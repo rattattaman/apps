@@ -38,7 +38,7 @@ describe('arenaSizeForFighterCount', () => {
   });
 
   it('inicia la temporada dos con llave inglesa y katana', () => {
-    expect(SEASON_TWO_FIGHTERS).toHaveLength(4);
+    expect(SEASON_TWO_FIGHTERS).toHaveLength(6);
     expect(SEASON_TWO_FIGHTERS.every((fighter) => fighter.season === 2)).toBe(true);
     expect(WEAPONS.katana.initialCutCount).toBe(1);
   });

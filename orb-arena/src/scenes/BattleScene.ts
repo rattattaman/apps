@@ -389,7 +389,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private updateMeleeCombat(now: number): void {
     for (const attacker of this.aliveFighters()) {
-      if (['bow', 'wand', 'shield', 'unarmed'].includes(attacker.selection.weapon)) continue;
+      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of this.aliveFighters()) {
         if (target === attacker) continue;
@@ -639,6 +639,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.addVelocity(target, angle, knockback);
     const progression = attacker.weapon.registerHit();
     if (attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
+    if (attacker.selection.weapon === 'grimoire') this.spawnClone(attacker, target);
+    if (attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain);
     this.audio.impact(Math.min(3, damage / 7));
     this.spark(impactX, impactY, attacker.selection.color, 9);
     this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#ffffff');
@@ -649,6 +651,19 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     });
     this.emitHud(true);
     if (target.health <= 0) this.eliminate(target, attacker);
+  }
+
+  private spawnClone(source: Combatant, target: Combatant): void {
+    if (this.fighters.length >= 18) return;
+    const angle = this.random.between(0, Math.PI * 2);
+    const cloneSelection = { ...target.selection, name: `${target.selection.name}·CLON` };
+    const clone = new Combatant(this, cloneSelection, this.fighters.length, target.x + Math.cos(angle) * 54, target.y + Math.sin(angle) * 54, target.health + 2, angle);
+    clone.weapon.copyProgressFrom(target.weapon);
+    clone.orb.setVelocity(Math.cos(angle) * 3.5, Math.sin(angle) * 3.5);
+    this.fighters.push(clone);
+    this.spark(clone.x, clone.y, source.selection.color, 12);
+    gameEvents.emit('battle:event', { kind: 'hit', title: `${source.selection.name} CREA CLON`, detail: `+2 de vida · ${target.selection.name}` });
+    this.emitHud(true);
   }
 
   private applyReflectedDamage(defender: Combatant, attacker: Combatant, baseDamage: number, impactX: number, impactY: number): void {

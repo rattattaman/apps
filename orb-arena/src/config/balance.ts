@@ -136,6 +136,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'shuriken', name: 'Shuriken', glyph: '✣', color: 0x91a7ff,
     ability: 'Lanza shurikens parriables; cada impacto suma +0,2 rebotes', damage: 1, range: 52, angularSpeed: 3.6, initialShurikenBounces: 1,
   },
+  grimoire: {
+    type: 'grimoire', name: 'Grimorio', glyph: '▣', color: 0xc58cff,
+    ability: 'Crea un clon del orbe golpeado; cada golpe suma 2 de vida al clon', damage: 1, range: 66, angularSpeed: 2.9,
+  },
+  scepter: {
+    type: 'scepter', name: 'Cetro', glyph: '♜', color: 0xffd36b,
+    ability: 'Cada golpe daña y cura; la ganancia aumenta +0,5', damage: 1, range: 58, angularSpeed: 3.1, initialHealthGain: 1,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -154,6 +162,8 @@ export const SEASON_TWO_FIGHTERS: FighterSelection[] = [
   { name: 'KAGE', weapon: 'katana', color: 0xff55a6, colorCss: '#ff55a6', season: 2 },
   { name: 'LANCE', weapon: 'joust', color: 0xffd166, colorCss: '#ffd166', season: 2 },
   { name: 'SHURI', weapon: 'shuriken', color: 0x91a7ff, colorCss: '#91a7ff', season: 2 },
+  { name: 'TOME', weapon: 'grimoire', color: 0xc58cff, colorCss: '#c58cff', season: 2 },
+  { name: 'SCEP', weapon: 'scepter', color: 0xffd36b, colorCss: '#ffd36b', season: 2 },
 ];
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS];

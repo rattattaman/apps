@@ -1,4 +1,4 @@
-export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield', 'scythe', 'unarmed', 'wrench', 'katana', 'joust', 'shuriken'] as const;
+export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield', 'scythe', 'unarmed', 'wrench', 'katana', 'joust', 'shuriken', 'grimoire', 'scepter'] as const;
 
 export type WeaponType = typeof WEAPON_TYPES[number];
 
@@ -30,6 +30,7 @@ export interface WeaponDefinition {
   initialMaxSpeed?: number;
   initialCutCount?: number;
   initialShurikenBounces?: number;
+  initialHealthGain?: number;
   color: number;
   glyph: string;
 }

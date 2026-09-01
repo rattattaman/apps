@@ -10,6 +10,7 @@ export interface WeaponProgress {
   maxSpeed: number;
   cutCount: number;
   shurikenBounces?: number;
+  healthGain?: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -29,6 +30,8 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'wrench': return current;
     case 'katana': return { ...current, cutCount: current.cutCount + 1 };
     case 'shuriken': return { ...current, shurikenBounces: (current.shurikenBounces ?? 0) + 0.2 };
+    case 'scepter': return { ...current, damage: current.damage + (current.healthGain ?? 1), healthGain: (current.healthGain ?? 1) + 0.5 };
+    case 'grimoire': return current;
     case 'joust': return { ...current, damage: current.damage + 2 };
   }
 }
@@ -47,6 +50,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'katana': return `CORTES ×${progress.cutCount}`;
     case 'joust': return `EMBESTIDA ${format(progress.damage)}`;
     case 'shuriken': return `REBOTES ${format(progress.shurikenBounces ?? 0)}`;
+    case 'scepter': return `DAÑO ${format(progress.damage)} · VIDA +${format(progress.healthGain ?? 1)}`;
+    case 'grimoire': return 'CLONES ACTIVOS';
   }
 }
 

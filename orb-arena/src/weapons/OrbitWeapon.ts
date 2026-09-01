@@ -28,6 +28,7 @@ export class OrbitWeapon {
       maxSpeed: definition.initialMaxSpeed ?? ARENA.maxSpeed,
       cutCount: definition.initialCutCount ?? 0,
       shurikenBounces: definition.initialShurikenBounces ?? 0,
+      healthGain: definition.initialHealthGain ?? 1,
     };
     this.graphics = scene.add.graphics().setDepth(5);
   }
@@ -39,6 +40,9 @@ export class OrbitWeapon {
   get maxSpeed(): number { return this.progress.maxSpeed; }
   get cutCount(): number { return this.progress.cutCount; }
   get shurikenBounces(): number { return this.progress.shurikenBounces ?? 0; }
+  get healthGain(): number { return this.progress.healthGain ?? 1; }
+
+  copyProgressFrom(other: OrbitWeapon): void { this.progress = { ...other.progress }; this.rangeScale = other.rangeScale; }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
 
