@@ -138,7 +138,7 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
   grimoire: {
     type: 'grimoire', name: 'Grimorio', glyph: '▣', color: 0xc58cff,
-    ability: 'Crea un clon del orbe golpeado; cada golpe suma 2 de vida al clon', damage: 1, range: 66, angularSpeed: 2.9,
+    ability: 'Crea clones con estadísticas del rival; cada clon nace con 2 vidas más', damage: 1, range: 66, angularSpeed: 2.9,
   },
   scepter: {
     type: 'scepter', name: 'Cetro', glyph: '♜', color: 0xffd36b,

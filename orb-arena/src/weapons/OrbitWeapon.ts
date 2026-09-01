@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Combatant } from '../combat/Combatant';
 import { ARENA, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
 import type { Segment } from '../utils/geometry';
-import { progressAfterHit, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
+import { copyNormalCombatProgress, progressAfterHit, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
 
 export class OrbitWeapon {
   angle: number;
@@ -42,7 +42,10 @@ export class OrbitWeapon {
   get shurikenBounces(): number { return this.progress.shurikenBounces ?? 0; }
   get healthGain(): number { return this.progress.healthGain ?? 1; }
 
-  copyProgressFrom(other: OrbitWeapon): void { this.progress = { ...other.progress }; this.rangeScale = other.rangeScale; }
+  copyNormalCombatStatsFrom(other: OrbitWeapon): void {
+    this.progress = copyNormalCombatProgress(this.progress, other.progress);
+    this.rangeScale = other.rangeScale;
+  }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
 
@@ -69,15 +72,15 @@ export class OrbitWeapon {
 
   segment(): Segment {
     if (this.owner.selection.weapon === 'shield') return this.shieldSegment();
-    const startDistance = ARENA.orbRadius - 4;
+    const startDistance = this.owner.radius - 4;
     return {
       start: {
         x: this.owner.x + Math.cos(this.angle) * startDistance,
         y: this.owner.y + Math.sin(this.angle) * startDistance,
       },
       end: {
-        x: this.owner.x + Math.cos(this.angle) * (ARENA.orbRadius + this.range),
-        y: this.owner.y + Math.sin(this.angle) * (ARENA.orbRadius + this.range),
+        x: this.owner.x + Math.cos(this.angle) * (this.owner.radius + this.range),
+        y: this.owner.y + Math.sin(this.angle) * (this.owner.radius + this.range),
       },
     };
   }
@@ -131,32 +134,55 @@ export class OrbitWeapon {
       return;
     }
     if (type === 'wrench') {
-      this.graphics.lineStyle(7, 0x9aa5b1, 1)
-        .beginPath().moveTo(0, 0).lineTo(length - 14, 0).strokePath()
-        .lineStyle(7, definition.color, 1)
-        .beginPath().moveTo(length - 17, -11).lineTo(length - 6, 0).lineTo(length - 17, 11).strokePath()
-        .lineStyle(4, 0xe9edf2, 0.85)
-        .beginPath().moveTo(length - 5, -13).lineTo(length, -5)
-        .moveTo(length - 5, 13).lineTo(length, 5).strokePath();
+      this.graphics.lineStyle(8, 0x7f8b98, 1).beginPath().moveTo(2, 0).lineTo(length - 15, 0).strokePath()
+        .fillStyle(0x26303a, 1).fillCircle(7, 0, 4)
+        .lineStyle(6, definition.color, 1).beginPath()
+        .moveTo(length - 18, -12).lineTo(length - 7, -5).lineTo(length - 2, 0)
+        .lineTo(length - 7, 5).lineTo(length - 18, 12).strokePath()
+        .lineStyle(2, 0xf4f7fa, 0.85).beginPath().moveTo(13, -2).lineTo(length - 18, -2).strokePath();
       return;
     }
     if (type === 'katana') {
-      this.graphics.lineStyle(4, definition.color, 1)
-        .beginPath().moveTo(6, 0).lineTo(length, 0).strokePath()
-        .lineStyle(2, 0xffedf7, 0.95)
-        .beginPath().moveTo(8, -2).lineTo(length, -2).strokePath()
-        .lineStyle(5, 0x372334, 1)
-        .beginPath().moveTo(-2, -9).lineTo(-2, 9).strokePath();
+      this.graphics.lineStyle(6, 0x372334, 1).beginPath().moveTo(-4, 0).lineTo(13, 0).strokePath()
+        .lineStyle(5, definition.color, 1).beginPath().moveTo(12, 0).lineTo(length - 5, 0).strokePath()
+        .lineStyle(2, 0xffffff, 0.95).beginPath().moveTo(15, -2).lineTo(length - 5, -2).lineTo(length, 0).strokePath()
+        .lineStyle(5, 0xe7b7d2, 1).beginPath().moveTo(10, -9).lineTo(10, 9).strokePath();
       return;
     }
     if (type === 'joust') {
-      this.graphics.lineStyle(8, definition.color, 1).beginPath().moveTo(0, 0).lineTo(length, 0).strokePath();
-      this.graphics.lineStyle(3, 0xfff0c0, 1).beginPath().moveTo(length - 20, -10).lineTo(length, 0).lineTo(length - 20, 10).strokePath();
+      this.graphics.fillStyle(0x8f6b3d, 1).fillRect(0, -4, length - 17, 8)
+        .lineStyle(3, 0xffefbd, 0.9).beginPath().moveTo(5, -2).lineTo(length - 18, -2).strokePath()
+        .fillStyle(definition.color, 1).fillTriangle(length, 0, length - 22, -11, length - 22, 11)
+        .lineStyle(5, 0x8f6b3d, 1).beginPath().moveTo(12, -12).lineTo(12, 12).strokePath();
       return;
     }
     if (type === 'shuriken') {
-      this.graphics.lineStyle(5, definition.color, 1).beginPath().moveTo(0, 0).lineTo(length, 0).strokePath();
-      this.graphics.lineStyle(3, 0xf4f7ff, 1).beginPath().moveTo(length - 8, -10).lineTo(length + 8, 10).moveTo(length - 8, 10).lineTo(length + 8, -10).strokePath();
+      const center = length - 5;
+      this.graphics.lineStyle(4, definition.color, 1).beginPath().moveTo(0, 0).lineTo(center - 10, 0).strokePath()
+        .fillStyle(0xcbd5ff, 1)
+        .fillTriangle(center, -15, center + 5, -4, center - 5, -4)
+        .fillTriangle(center + 15, 0, center + 4, 5, center + 4, -5)
+        .fillTriangle(center, 15, center - 5, 4, center + 5, 4)
+        .fillTriangle(center - 15, 0, center - 4, -5, center - 4, 5)
+        .fillStyle(0x27314c, 1).fillCircle(center, 0, 4);
+      return;
+    }
+    if (type === 'grimoire') {
+      const bookX = length - 22;
+      const visualColor = this.owner.selection.color;
+      this.graphics.lineStyle(4, visualColor, 1).beginPath().moveTo(0, 0).lineTo(bookX, 0).strokePath()
+        .fillStyle(0x392653, 1).fillRoundedRect(bookX, -15, 30, 30, 4)
+        .lineStyle(3, visualColor, 1).strokeRoundedRect(bookX, -15, 30, 30, 4)
+        .lineStyle(2, 0xf0dfff, 0.9).beginPath().moveTo(bookX + 15, -12).lineTo(bookX + 15, 12).strokePath()
+        .fillStyle(0xf0dfff, 1).fillCircle(bookX + 8, 0, 3);
+      return;
+    }
+    if (type === 'scepter') {
+      this.graphics.lineStyle(7, 0x8c6938, 1).beginPath().moveTo(0, 0).lineTo(length - 10, 0).strokePath()
+        .lineStyle(3, 0xfff2bd, 0.85).beginPath().moveTo(4, -2).lineTo(length - 12, -2).strokePath()
+        .fillStyle(definition.color, 1).fillCircle(length - 5, 0, 11)
+        .lineStyle(3, 0xffffff, 0.9).strokeCircle(length - 5, 0, 7)
+        .fillStyle(0xfff4bc, 1).fillCircle(length - 7, -2, 3);
       return;
     }
     const thickness = type === 'dagger' ? 7 : type === 'spear' ? 4 : 6;
@@ -171,7 +197,7 @@ export class OrbitWeapon {
   }
 
   private shieldSegment(): Segment {
-    const radius = ARENA.orbRadius + this.range;
+    const radius = this.owner.radius + this.range;
     const center = {
       x: this.owner.x + Math.cos(this.angle) * radius,
       y: this.owner.y + Math.sin(this.angle) * radius,

@@ -11,12 +11,25 @@ export const COLLISION = {
   turret: 0x0008,
 } as const;
 
+export interface CombatantOptions {
+  radius?: number;
+  isClone?: boolean;
+  canClone?: boolean;
+  cloneOwnerId?: string;
+  generation?: number;
+}
+
 export class Combatant {
   readonly id: string;
   readonly orb: Phaser.Physics.Matter.Image;
   readonly weapon: OrbitWeapon;
   readonly selection: FighterSelection;
   readonly maxHealth: number;
+  readonly radius: number;
+  readonly isClone: boolean;
+  readonly canClone: boolean;
+  readonly cloneOwnerId?: string;
+  readonly generation: number;
   health: number;
   poisonStacks = 0;
   alive = true;
@@ -31,18 +44,25 @@ export class Combatant {
     y: number,
     maxHealth: number,
     initialAngle: number,
+    options: CombatantOptions = {},
   ) {
     this.id = `fighter-${index}`;
     this.selection = selection;
-    this.maxHealth = maxHealth;
-    this.health = maxHealth;
+    this.maxHealth = Math.max(1, maxHealth);
+    this.health = this.maxHealth;
+    this.radius = options.radius ?? ARENA.orbRadius;
+    this.isClone = options.isClone ?? false;
+    this.canClone = options.canClone ?? (selection.weapon === 'grimoire' && !this.isClone);
+    this.cloneOwnerId = options.cloneOwnerId;
+    this.generation = options.generation ?? 0;
     this.orb = scene.matter.add.image(x, y, 'orb', undefined, {
-      shape: { type: 'circle', radius: ARENA.orbRadius },
+      shape: { type: 'circle', radius: this.radius },
       restitution: 1,
       friction: 0,
       frictionAir: 0,
     });
     this.orb.setTint(selection.color).setBounce(1).setFriction(0, 0, 0).setFixedRotation();
+    this.orb.setScale(this.radius / ARENA.orbRadius);
     this.orb.setCollisionCategory(COLLISION.fighter)
       .setCollidesWith([COLLISION.fighter, COLLISION.wall, COLLISION.turret]);
     const body = this.orb.body as MatterJS.BodyType;
@@ -65,8 +85,8 @@ export class Combatant {
     }
     this.keepMoving(globalSpeed);
     this.ring.clear()
-      .lineStyle(2, 0xffffff, 0.25).strokeCircle(this.x, this.y, ARENA.orbRadius - 4)
-      .lineStyle(2, this.selection.color, 0.55).strokeCircle(this.x, this.y, ARENA.orbRadius + 5);
+      .lineStyle(2, 0xffffff, 0.25).strokeCircle(this.x, this.y, Math.max(4, this.radius - 4))
+      .lineStyle(2, this.selection.color, 0.55).strokeCircle(this.x, this.y, this.radius + 4);
     this.label.setPosition(this.x, this.y);
   }
 
@@ -130,7 +150,7 @@ export class Combatant {
       return;
     }
     const desiredMinimum = ARENA.minSpeed * globalSpeed;
-    const maximum = ARENA.maxSpeed * globalSpeed;
+    const maximum = (this.isClone ? this.weapon.maxSpeed : ARENA.maxSpeed) * globalSpeed;
     const angle = speed > 0.08 ? Math.atan2(body.velocity.y, body.velocity.x) : this.weapon.angle;
     if (speed < desiredMinimum) {
       this.orb.setVelocity(Math.cos(angle) * desiredMinimum, Math.sin(angle) * desiredMinimum);

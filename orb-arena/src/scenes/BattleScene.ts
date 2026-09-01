@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
+import { canCreateClone, cloneHealthForNumber } from '../combat/cloneLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
 import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
@@ -65,6 +66,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private readonly joustCharging = new Set<string>();
   private readonly lastBounceHealAt = new Map<string, number>();
   private readonly poisonEffects = new Map<string, PoisonEffect>();
+  private readonly cloneCountsByOwner = new Map<string, number>();
+  private nextEntitySequence = 0;
   private arenaBorder!: Phaser.GameObjects.Graphics;
 
   constructor() {
@@ -204,11 +207,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.globalSpeed = 1;
     this.ending = false;
     this.projectileSequence = 0;
+    this.nextEntitySequence = this.battleConfig.fighters.length;
     this.nextHudAt = 0;
     this.nextShrinkAt = ARENA.battleLimitMs + 8_000;
     this.nextShotAt.clear();
     this.lastBounceHealAt.clear();
     this.poisonEffects.clear();
+    this.cloneCountsByOwner.clear();
     this.matter.world.setGravity(0, 0);
     this.matter.world.engine.timing.timeScale = this.simulationSpeed;
   }
@@ -240,6 +245,17 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       graphics.fillStyle(0x92ddff, 1).fillRect(2, 4, 22, 4);
       graphics.fillStyle(0xe9f9ff, 1).fillTriangle(31, 6, 22, 1, 22, 11);
       graphics.generateTexture('bolt', 32, 12);
+      graphics.destroy();
+    }
+    if (!this.textures.exists('shuriken')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      graphics.fillStyle(0xcbd5ff, 1)
+        .fillTriangle(12, 0, 16, 9, 8, 9)
+        .fillTriangle(24, 12, 15, 16, 15, 8)
+        .fillTriangle(12, 24, 8, 15, 16, 15)
+        .fillTriangle(0, 12, 9, 8, 9, 16)
+        .fillStyle(0x27314c, 1).fillCircle(12, 12, 4);
+      graphics.generateTexture('shuriken', 24, 24);
       graphics.destroy();
     }
     if (!this.textures.exists('turret')) {
@@ -388,11 +404,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private updateMeleeCombat(now: number): void {
-    for (const attacker of this.aliveFighters()) {
+    const alive = this.aliveFighters();
+    for (const attacker of alive) {
+      if (!attacker.alive) continue;
       if (['bow', 'wand', 'shield', 'unarmed', 'shuriken'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
-      for (const target of this.aliveFighters()) {
-        if (target === attacker) continue;
+      for (const target of alive) {
+        if (target === attacker || !target.alive) continue;
         if (target.selection.weapon === 'shield'
           && segmentDistanceSquared(segment, target.weapon.segment()) <= (SHIELD.thickness + 5) ** 2) {
           if (this.cooldowns.canTrigger(`shield-${target.id}`, attacker.id, now, ARENA.weaponHitCooldownMs)) {
@@ -404,7 +422,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
           }
           continue;
         }
-        const hitRadius = ARENA.orbRadius + 7;
+        const hitRadius = target.radius + 7;
         if (pointToSegmentDistanceSquared(target, segment) > hitRadius * hitRadius) continue;
         if (!this.cooldowns.canTrigger(attacker.id, target.id, now, ARENA.weaponHitCooldownMs)) continue;
         if (attacker.selection.weapon === 'katana') {
@@ -556,7 +574,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       if (blocked) continue;
       for (const target of this.aliveFighters()) {
         if (target === projectile.owner) continue;
-        if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > (ARENA.orbRadius + projectile.hitRadius) ** 2) continue;
+        if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > (target.radius + projectile.hitRadius) ** 2) continue;
         if (projectile.kind === 'fireball') {
           this.explodeFireball(projectile);
         } else if (projectile.kind === 'bolt') {
@@ -639,7 +657,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.addVelocity(target, angle, knockback);
     const progression = attacker.weapon.registerHit();
     if (attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
-    if (attacker.selection.weapon === 'grimoire') this.spawnClone(attacker, target);
+    if (canCreateClone(attacker)) this.spawnClone(attacker, target);
     if (attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain, true);
     this.audio.impact(Math.min(3, damage / 7));
     this.spark(impactX, impactY, attacker.selection.color, 9);
@@ -654,17 +672,46 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private spawnClone(source: Combatant, target: Combatant): void {
-    if (this.fighters.length >= 18) return;
-    const angle = this.random.between(0, Math.PI * 2);
-    const cloneSelection = { ...target.selection, name: `${target.selection.name}·CLON` };
-    const clone = new Combatant(this, cloneSelection, this.fighters.length, target.x + Math.cos(angle) * 54, target.y + Math.sin(angle) * 54, 2, angle);
-    clone.orb.setScale(0.68).setTint(source.selection.color);
-    clone.weapon.copyProgressFrom(target.weapon);
-    clone.orb.setVelocity(Math.cos(angle) * 3.5, Math.sin(angle) * 3.5);
+    if (!canCreateClone(source)) return;
+    const cloneNumber = (this.cloneCountsByOwner.get(source.id) ?? 0) + 1;
+    this.cloneCountsByOwner.set(source.id, cloneNumber);
+    const cloneHealth = cloneHealthForNumber(cloneNumber);
+    const cloneRadius = 18;
+    const spawn = this.findCloneSpawnPosition(source, cloneRadius, cloneNumber);
+    const cloneSelection = { ...source.selection, name: `${source.selection.name}·${cloneNumber}` };
+    const clone = new Combatant(
+      this, cloneSelection, this.nextEntitySequence++, spawn.x, spawn.y, cloneHealth, spawn.angle,
+      { radius: cloneRadius, isClone: true, canClone: false, cloneOwnerId: source.id, generation: 1 },
+    );
+    clone.weapon.copyNormalCombatStatsFrom(target.weapon);
+    const targetBody = target.orb.body as MatterJS.BodyType;
+    const inheritedSpeed = Phaser.Math.Clamp(Math.hypot(targetBody.velocity.x, targetBody.velocity.y), ARENA.minSpeed, ARENA.maxSpeed);
+    clone.orb.setVelocity(Math.cos(spawn.angle) * inheritedSpeed, Math.sin(spawn.angle) * inheritedSpeed);
     this.fighters.push(clone);
     this.spark(clone.x, clone.y, source.selection.color, 12);
-    gameEvents.emit('battle:event', { kind: 'hit', title: `${source.selection.name} CREA CLON`, detail: `+2 de vida · ${target.selection.name}` });
+    gameEvents.emit('battle:event', { kind: 'hit', title: `${source.selection.name} CREA CLON`, detail: `${cloneHealth} de vida · estadísticas de ${target.selection.name}` });
     this.emitHud(true);
+  }
+
+  private findCloneSpawnPosition(source: Combatant, cloneRadius: number, cloneNumber: number): { x: number; y: number; angle: number } {
+    const inset = this.arenaInset + cloneRadius + 3;
+    const baseAngle = (cloneNumber * 2.39996) % (Math.PI * 2);
+    let best = { x: source.x, y: source.y, angle: baseAngle, clearance: -Infinity };
+    for (let ring = 0; ring < 3; ring += 1) {
+      const distance = source.radius + cloneRadius + 14 + ring * 18;
+      for (let step = 0; step < 16; step += 1) {
+        const angle = baseAngle + step * Math.PI * 2 / 16;
+        const x = Phaser.Math.Clamp(source.x + Math.cos(angle) * distance, inset, this.arenaSize - inset);
+        const y = Phaser.Math.Clamp(source.y + Math.sin(angle) * distance, inset, this.arenaSize - inset);
+        const clearance = this.aliveFighters().reduce((minimum, fighter) => {
+          const required = cloneRadius + fighter.radius + 6;
+          return Math.min(minimum, Phaser.Math.Distance.Between(x, y, fighter.x, fighter.y) - required);
+        }, Infinity);
+        if (clearance > best.clearance) best = { x, y, angle, clearance };
+        if (clearance >= 0) return { x, y, angle };
+      }
+    }
+    return { x: best.x, y: best.y, angle: best.angle };
   }
 
   private applyReflectedDamage(defender: Combatant, attacker: Combatant, baseDamage: number, impactX: number, impactY: number): void {
@@ -702,7 +749,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.spark(projectile.x, projectile.y, 0xff8a45, 18);
     for (const target of this.aliveFighters()) {
       if (target === projectile.owner) continue;
-      const hitRadius = radius + ARENA.orbRadius;
+      const hitRadius = radius + target.radius;
       if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > hitRadius ** 2) continue;
       this.applyDamage(projectile.owner, target, projectile.damage, 1.05, projectile.x, projectile.y);
     }
@@ -757,7 +804,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
     const { x, y } = target;
     this.poisonEffects.delete(target.id);
+    this.nextShotAt.delete(target.id);
+    this.joustNextCharge.delete(target.id);
+    this.joustCharging.delete(target.id);
+    this.lastBounceHealAt.delete(target.id);
+    this.cooldowns.clearFor(target.id);
     target.eliminate();
+    if (target.isClone) this.fighters = this.fighters.filter((fighter) => fighter !== target);
     this.audio.elimination();
     this.cameras.main.shake(lastStanding ? 420 : 180, lastStanding ? 0.012 : 0.006);
     this.spark(x, y, target.selection.color, lastStanding ? 28 : 16);
@@ -815,7 +868,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.arenaInset,
         this.arenaSize,
         this.arenaSize,
-        ARENA.orbRadius,
+        fighter.radius,
         fighter.selection.weapon === 'unarmed' ? 0.25 : ARENA.minSpeed * this.globalSpeed,
       );
       if (!correction.corrected) continue;
