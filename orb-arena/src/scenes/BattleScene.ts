@@ -267,36 +267,42 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private createTurrets(): void {
+    this.turrets = [];
+    for (const owner of this.fighters.filter((fighter) => fighter.selection.weapon === 'wrench')) {
+      this.spawnTurret(owner);
+    }
+  }
+
+  private spawnTurret(owner: Combatant): void {
     const inset = ARENA.padding + TURRET.radius + 4;
-    this.turrets = this.fighters
-      .filter((fighter) => fighter.selection.weapon === 'wrench')
-      .map((owner, index) => {
-        const towardCenter = Math.atan2(this.arenaSize / 2 - owner.y, this.arenaSize / 2 - owner.x);
-        const x = Phaser.Math.Clamp(
-          owner.x + Math.cos(towardCenter) * TURRET.placementDistance,
-          inset,
-          this.arenaSize - inset,
-        );
-        const y = Phaser.Math.Clamp(
-          owner.y + Math.sin(towardCenter) * TURRET.placementDistance,
-          inset,
-          this.arenaSize - inset,
-        );
-        const sprite = this.matter.add.image(x, y, 'turret', undefined, {
-          shape: { type: 'circle', radius: TURRET.radius },
-          isStatic: true,
-          restitution: 1,
-          friction: 0,
-          label: `turret-${index}`,
-        });
-        sprite.setCollisionCategory(COLLISION.turret).setCollidesWith(COLLISION.fighter).setDepth(4);
-        return {
-          owner,
-          sprite,
-          angle: this.random.between(0, Math.PI * 2),
-          nextShotAt: this.time.now + this.random.between(450, TURRET.fireIntervalMs),
-        };
-      });
+    const ownerTurrets = this.turrets.filter((turret) => turret.owner === owner).length;
+    const towardCenter = Math.atan2(this.arenaSize / 2 - owner.y, this.arenaSize / 2 - owner.x);
+    const placementAngle = towardCenter + ownerTurrets * 2.39996;
+    const x = Phaser.Math.Clamp(
+      owner.x + Math.cos(placementAngle) * TURRET.placementDistance,
+      inset,
+      this.arenaSize - inset,
+    );
+    const y = Phaser.Math.Clamp(
+      owner.y + Math.sin(placementAngle) * TURRET.placementDistance,
+      inset,
+      this.arenaSize - inset,
+    );
+    const sprite = this.matter.add.image(x, y, 'turret', undefined, {
+      shape: { type: 'circle', radius: TURRET.radius },
+      isStatic: true,
+      restitution: 1,
+      friction: 0,
+      label: `turret-${this.turrets.length}`,
+    });
+    sprite.setCollisionCategory(COLLISION.turret).setCollidesWith(COLLISION.fighter).setDepth(4);
+    this.turrets.push({
+      owner,
+      sprite,
+      angle: this.random.between(0, Math.PI * 2),
+      nextShotAt: this.time.now + this.random.between(450, TURRET.fireIntervalMs),
+    });
+    this.spark(x, y, owner.selection.color, 10);
   }
 
   private updateTurrets(now: number, deltaSeconds: number): void {
@@ -540,6 +546,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (!attacker.alive || !target.alive || this.ending) return;
     const cuts = attacker.weapon.cutCount;
     const progression = attacker.weapon.registerHit();
+    if (attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
     this.addVelocity(target, angle, 0.7);
     this.spark(impactX, impactY, attacker.selection.color, 9);
