@@ -27,6 +27,7 @@ export class OrbitWeapon {
       shieldSize: definition.initialShieldSize ?? 0,
       maxSpeed: definition.initialMaxSpeed ?? ARENA.maxSpeed,
       cutCount: definition.initialCutCount ?? 0,
+      shurikenBounces: definition.initialShurikenBounces ?? 0,
     };
     this.graphics = scene.add.graphics().setDepth(5);
   }
@@ -37,6 +38,7 @@ export class OrbitWeapon {
   get explosionSize(): number { return this.progress.explosionSize; }
   get maxSpeed(): number { return this.progress.maxSpeed; }
   get cutCount(): number { return this.progress.cutCount; }
+  get shurikenBounces(): number { return this.progress.shurikenBounces ?? 0; }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
 
@@ -141,6 +143,16 @@ export class OrbitWeapon {
         .beginPath().moveTo(8, -2).lineTo(length, -2).strokePath()
         .lineStyle(5, 0x372334, 1)
         .beginPath().moveTo(-2, -9).lineTo(-2, 9).strokePath();
+      return;
+    }
+    if (type === 'joust') {
+      this.graphics.lineStyle(8, definition.color, 1).beginPath().moveTo(0, 0).lineTo(length, 0).strokePath();
+      this.graphics.lineStyle(3, 0xfff0c0, 1).beginPath().moveTo(length - 20, -10).lineTo(length, 0).lineTo(length - 20, 10).strokePath();
+      return;
+    }
+    if (type === 'shuriken') {
+      this.graphics.lineStyle(5, definition.color, 1).beginPath().moveTo(0, 0).lineTo(length, 0).strokePath();
+      this.graphics.lineStyle(3, 0xf4f7ff, 1).beginPath().moveTo(length - 8, -10).lineTo(length + 8, 10).moveTo(length - 8, 10).lineTo(length + 8, -10).strokePath();
       return;
     }
     const thickness = type === 'dagger' ? 7 : type === 'spear' ? 4 : 6;

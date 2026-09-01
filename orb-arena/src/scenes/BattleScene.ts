@@ -3,7 +3,7 @@ import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, KATANA, PROJECTILES, SHIELD, TURRET, UNARMED } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -61,6 +61,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private nextHudAt = 0;
   private nextShrinkAt = ARENA.battleLimitMs + 8_000;
   private readonly nextShotAt = new Map<string, number>();
+  private readonly joustNextCharge = new Map<string, number>();
+  private readonly joustCharging = new Set<string>();
   private readonly lastBounceHealAt = new Map<string, number>();
   private readonly poisonEffects = new Map<string, PoisonEffect>();
   private arenaBorder!: Phaser.GameObjects.Graphics;
@@ -96,6 +98,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.updateTurrets(time, deltaSeconds);
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
+    this.updateJoust(time);
     this.updateParries(time);
     this.updateRangedWeapons(time);
     this.updateProjectiles(time);
@@ -415,6 +418,19 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
   }
 
+  private updateJoust(now: number): void {
+    for (const fighter of this.aliveFighters()) {
+      if (fighter.selection.weapon !== 'joust') continue;
+      const next = this.joustNextCharge.get(fighter.id) ?? now + JOUST.chargeIntervalMs;
+      if (now < next || this.joustCharging.has(fighter.id)) continue;
+      const target = this.nearestRival(fighter); if (!target) continue;
+      this.joustCharging.add(fighter.id); this.joustNextCharge.set(fighter.id, now + JOUST.chargeIntervalMs);
+      const angle = Math.atan2(target.y - fighter.y, target.x - fighter.x);
+      fighter.orb.setVelocity(Math.cos(angle) * JOUST.chargeSpeed, Math.sin(angle) * JOUST.chargeSpeed);
+      this.time.delayedCall(JOUST.chargeDurationMs, () => this.joustCharging.delete(fighter.id));
+    }
+  }
+
   private updateParries(now: number): void {
     const alive = this.aliveFighters();
     for (let firstIndex = 0; firstIndex < alive.length; firstIndex += 1) {
@@ -442,7 +458,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private updateRangedWeapons(now: number): void {
     for (const fighter of this.aliveFighters()) {
-      if (fighter.selection.weapon !== 'bow' && fighter.selection.weapon !== 'wand') continue;
+      if (fighter.selection.weapon !== 'bow' && fighter.selection.weapon !== 'wand' && fighter.selection.weapon !== 'shuriken') continue;
       if (now < (this.nextShotAt.get(fighter.id) ?? 0)) continue;
       const target = this.nearestRival(fighter);
       if (!target) continue;
@@ -463,6 +479,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
             fighter.weapon.angle + offset, this.projectileSequence++, 'fireball', fighter.weapon.explosionSize,
           ));
         }
+        this.audio.shot();
+        continue;
+      }
+      if (fighter.selection.weapon === 'shuriken') {
+        this.nextShotAt.set(fighter.id, now + PROJECTILES.fireIntervalMs);
+        const start = fighter.weapon.segment().end;
+        this.projectiles.push(new Projectile(this, fighter, fighter.weapon.damage, start.x, start.y, fighter.weapon.angle, this.projectileSequence++, 'shuriken', 0, Math.floor(fighter.weapon.shurikenBounces)));
         this.audio.shot();
         continue;
       }
@@ -497,7 +520,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       if (!projectile.alive) continue;
       if (projectile.x < inset || projectile.x > this.arenaSize - inset || projectile.y < inset || projectile.y > this.arenaSize - inset) {
         if (projectile.kind === 'fireball') this.explodeFireball(projectile);
-        projectile.destroy();
+        if (projectile.kind === 'shuriken' && projectile.canBounce()) {
+          const vx = (projectile.sprite.body as MatterJS.BodyType).velocity.x;
+          const vy = (projectile.sprite.body as MatterJS.BodyType).velocity.y;
+          if (projectile.x < inset || projectile.x > this.arenaSize - inset) projectile.sprite.setVelocity(-vx, vy);
+          else projectile.sprite.setVelocity(vx, -vy);
+          projectile.bounce();
+        } else projectile.destroy();
         continue;
       }
       let blocked = false;
@@ -603,6 +632,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private applyDamage(attacker: Combatant, target: Combatant, baseDamage: number, knockback: number, impactX: number, impactY: number): void {
     if (!attacker.alive || !target.alive || this.ending) return;
+    if (this.joustCharging.has(target.id)) return;
     const damage = baseDamage * (this.suddenDeath ? 2 : 1);
     const applied = target.damage(damage);
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);

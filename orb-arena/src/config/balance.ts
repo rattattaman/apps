@@ -68,6 +68,7 @@ export const KATANA = {
   cutDamage: 1,
   cutSpacingMs: 85,
 } as const;
+export const JOUST = { chargeIntervalMs: 4_000, chargeDurationMs: 650, chargeSpeed: 11 } as const;
 
 export function fireballExplosionRadius(size: number): number {
   return FIREBALL.baseExplosionRadius + Math.max(0, size - 1) * FIREBALL.explosionRadiusGrowth;
@@ -126,6 +127,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'katana', name: 'Katana', glyph: '⼑', color: 0xff55a6,
     ability: 'Golpes y paradas añaden un corte', damage: 1, range: 70, angularSpeed: 3.35, initialCutCount: 1,
   },
+  joust: {
+    type: 'joust', name: 'Justa', glyph: '⚔', color: 0xffd166,
+    ability: 'Embestida periódica inmortal; cada golpe suma +2 a la próxima', damage: 1, range: 78, angularSpeed: 2.8,
+  },
+  shuriken: {
+    type: 'shuriken', name: 'Shuriken', glyph: '✣', color: 0x91a7ff,
+    ability: 'Lanza shurikens parriables; cada impacto suma +0,2 rebotes', damage: 1, range: 52, angularSpeed: 3.6, initialShurikenBounces: 1,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -142,6 +151,8 @@ export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
 export const SEASON_TWO_FIGHTERS: FighterSelection[] = [
   { name: 'TORQ', weapon: 'wrench', color: 0xf0a04b, colorCss: '#f0a04b', season: 2 },
   { name: 'KAGE', weapon: 'katana', color: 0xff55a6, colorCss: '#ff55a6', season: 2 },
+  { name: 'LANCE', weapon: 'joust', color: 0xffd166, colorCss: '#ffd166', season: 2 },
+  { name: 'SHURI', weapon: 'shuriken', color: 0x91a7ff, colorCss: '#91a7ff', season: 2 },
 ];
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS];

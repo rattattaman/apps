@@ -2,12 +2,13 @@ import Phaser from 'phaser';
 import { COLLISION, type Combatant } from '../combat/Combatant';
 import { FIREBALL, PROJECTILES } from '../config/balance';
 
-export type ProjectileKind = 'arrow' | 'fireball' | 'bolt';
+export type ProjectileKind = 'arrow' | 'fireball' | 'bolt' | 'shuriken';
 
 export class Projectile {
   readonly id: string;
   readonly sprite: Phaser.Physics.Matter.Image;
   readonly bornAt: number;
+  bounces: number;
   alive = true;
   lastDeflectedAt = -Infinity;
 
@@ -21,17 +22,19 @@ export class Projectile {
     sequence: number,
     readonly kind: ProjectileKind = 'arrow',
     readonly explosionSize = 0,
+    readonly maxBounces = 0,
   ) {
     this.id = `${kind}-${sequence}`;
     this.bornAt = scene.time.now;
     this.sprite = scene.matter.add.image(x, y, kind, undefined, {
       shape: kind === 'fireball'
         ? { type: 'circle', radius: FIREBALL.radius }
-        : { type: 'rectangle', width: 30, height: 7 },
+        : { type: 'rectangle', width: kind === 'shuriken' ? 18 : 30, height: kind === 'shuriken' ? 18 : 7 },
       isSensor: true,
       frictionAir: 0,
     });
     this.sprite.setCollisionCategory(COLLISION.projectile).setCollidesWith(0).setRotation(angle);
+    this.bounces = 0;
     const speed = kind === 'fireball' ? FIREBALL.speed : PROJECTILES.speed;
     this.sprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
   }
@@ -56,6 +59,9 @@ export class Projectile {
     this.sprite.setVelocity(Math.cos(reflected) * speed, Math.sin(reflected) * speed);
     this.lastDeflectedAt = now;
   }
+
+  canBounce(): boolean { return this.bounces < this.maxBounces; }
+  bounce(): void { this.bounces += 1; }
 
   destroy(): void {
     if (!this.alive) return;
