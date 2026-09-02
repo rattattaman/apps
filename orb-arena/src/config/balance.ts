@@ -68,7 +68,7 @@ export const KATANA = {
   cutDamage: 1,
   cutSpacingMs: 85,
 } as const;
-export const JOUST = { chargeIntervalMs: 2_800, chargeDurationMs: 1_050, chargeSpeed: 11 } as const;
+export const JOUST = { minChargeDelayMs: 1_600, maxChargeDelayMs: 4_200, chargeSpeed: 11 } as const;
 export const SHURIKEN = { fireIntervalMs: 1_450 } as const;
 
 export function fireballExplosionRadius(size: number): number {
@@ -130,7 +130,7 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
   joust: {
     type: 'joust', name: 'Justa', glyph: '⚔', color: 0xffd166,
-    ability: 'Embestida periódica inmortal; cada golpe suma +2 a la próxima', damage: 1, range: 78, angularSpeed: 2.8,
+    ability: 'Golpea por 1; cada golpe suma +2 a su embestida inmortal', damage: 1, range: 78, angularSpeed: 2.8, initialChargeDamage: 1,
   },
   shuriken: {
     type: 'shuriken', name: 'Shuriken', glyph: '✣', color: 0x91a7ff,

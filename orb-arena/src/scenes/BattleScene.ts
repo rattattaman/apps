@@ -64,6 +64,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private readonly nextShotAt = new Map<string, number>();
   private readonly joustNextCharge = new Map<string, number>();
   private readonly joustCharging = new Set<string>();
+  private readonly joustChargeAngles = new Map<string, number>();
   private readonly lastBounceHealAt = new Map<string, number>();
   private readonly poisonEffects = new Map<string, PoisonEffect>();
   private readonly cloneCountsByOwner = new Map<string, number>();
@@ -211,6 +212,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.nextHudAt = 0;
     this.nextShrinkAt = ARENA.battleLimitMs + 8_000;
     this.nextShotAt.clear();
+    this.joustNextCharge.clear();
+    this.joustCharging.clear();
+    this.joustChargeAngles.clear();
     this.lastBounceHealAt.clear();
     this.poisonEffects.clear();
     this.cloneCountsByOwner.clear();
@@ -281,6 +285,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const speed = this.random.between(3.2, 4.5);
       fighter.orb.setVelocity(Math.cos(heading) * speed, Math.sin(heading) * speed);
       this.nextShotAt.set(fighter.id, this.time.now + this.random.between(700, PROJECTILES.fireIntervalMs));
+      if (selection.weapon === 'joust') this.scheduleNextJoust(fighter, this.time.now);
       return fighter;
     });
   }
@@ -429,8 +434,10 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
           this.applyKatanaStrike(attacker, target, segment.end.x, segment.end.y);
           continue;
         }
-        const knockback = attacker.selection.weapon === 'spear' ? 2.5 : 1.05;
-        this.applyDamage(attacker, target, attacker.weapon.damage, knockback, segment.end.x, segment.end.y);
+        const charging = attacker.selection.weapon === 'joust' && this.joustCharging.has(attacker.id);
+        const hitDamage = charging ? attacker.weapon.chargeDamage : attacker.weapon.damage;
+        const knockback = attacker.selection.weapon === 'spear' ? 2.5 : charging ? 2.8 : 1.05;
+        this.applyDamage(attacker, target, hitDamage, knockback, segment.end.x, segment.end.y, !charging);
         if (attacker.selection.weapon === 'scythe' && target.alive) this.applyPoison(attacker, target);
       }
     }
@@ -439,14 +446,36 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private updateJoust(now: number): void {
     for (const fighter of this.aliveFighters()) {
       if (fighter.selection.weapon !== 'joust') continue;
-      const next = this.joustNextCharge.get(fighter.id) ?? now + JOUST.chargeIntervalMs;
-      if (now < next || this.joustCharging.has(fighter.id)) continue;
+      if (this.joustCharging.has(fighter.id)) {
+        const angle = this.joustChargeAngles.get(fighter.id) ?? fighter.weapon.angle;
+        fighter.orb.setVelocity(Math.cos(angle) * JOUST.chargeSpeed, Math.sin(angle) * JOUST.chargeSpeed);
+        continue;
+      }
+      const next = this.joustNextCharge.get(fighter.id);
+      if (next === undefined) { this.scheduleNextJoust(fighter, now); continue; }
+      if (now < next) continue;
       const target = this.nearestRival(fighter); if (!target) continue;
-      this.joustCharging.add(fighter.id); this.joustNextCharge.set(fighter.id, now + JOUST.chargeIntervalMs);
       const angle = Math.atan2(target.y - fighter.y, target.x - fighter.x);
+      this.joustCharging.add(fighter.id);
+      this.joustChargeAngles.set(fighter.id, angle);
+      this.joustNextCharge.delete(fighter.id);
+      fighter.setInvulnerable(true);
       fighter.orb.setVelocity(Math.cos(angle) * JOUST.chargeSpeed, Math.sin(angle) * JOUST.chargeSpeed);
-      this.time.delayedCall(JOUST.chargeDurationMs, () => this.joustCharging.delete(fighter.id));
+      this.spark(fighter.x, fighter.y, fighter.visualColor, 12);
+      gameEvents.emit('battle:event', { kind: 'hit', title: `${fighter.displayName} EMBISTE`, detail: `${fighter.weapon.chargeDamage} de daño hasta chocar` });
     }
+  }
+
+  private scheduleNextJoust(fighter: Combatant, now: number): void {
+    this.joustNextCharge.set(fighter.id, now + this.random.between(JOUST.minChargeDelayMs, JOUST.maxChargeDelayMs));
+  }
+
+  private stopJoustCharge(fighter: Combatant): void {
+    if (!this.joustCharging.delete(fighter.id)) return;
+    this.joustChargeAngles.delete(fighter.id);
+    fighter.setInvulnerable(false);
+    this.scheduleNextJoust(fighter, this.time.now);
+    this.spark(fighter.x, fighter.y, fighter.visualColor, 7);
   }
 
   private updateParries(now: number): void {
@@ -648,21 +677,21 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.emitHud(true);
   }
 
-  private applyDamage(attacker: Combatant, target: Combatant, baseDamage: number, knockback: number, impactX: number, impactY: number): void {
+  private applyDamage(attacker: Combatant, target: Combatant, baseDamage: number, knockback: number, impactX: number, impactY: number, registerProgress = true): void {
     if (!attacker.alive || !target.alive || this.ending) return;
-    if (this.joustCharging.has(target.id)) return;
     const damage = baseDamage * (this.suddenDeath ? 2 : 1);
     const applied = target.damage(damage);
+    if (applied <= 0) return;
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
     this.addVelocity(target, angle, knockback);
-    const progression = attacker.weapon.registerHit();
-    if (attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
-    if (canCreateClone(attacker)) this.spawnClone(attacker, target);
-    if (attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain, true);
+    const progression = registerProgress ? attacker.weapon.registerHit() : attacker.weapon.progressionText;
+    if (registerProgress && attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
+    if (registerProgress && canCreateClone(attacker)) this.spawnClone(attacker, target);
+    if (registerProgress && attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain, true);
     this.audio.impact(Math.min(3, damage / 7));
     this.spark(impactX, impactY, attacker.visualColor, 9);
     this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#ffffff');
-    this.floatText(attacker.x, attacker.y - 40, `↑ ${progression}`, attacker.visualColorCss, true);
+    if (registerProgress) this.floatText(attacker.x, attacker.y - 40, `↑ ${progression}`, attacker.visualColorCss, true);
     gameEvents.emit('battle:event', {
       kind: 'hit', title: `${attacker.displayName} IMPACTA`,
       detail: `${Math.round(applied)} de daño · ${progression}`,
@@ -693,6 +722,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const inheritedSpeed = Phaser.Math.Clamp(Math.hypot(targetBody.velocity.x, targetBody.velocity.y), ARENA.minSpeed, ARENA.maxSpeed);
     clone.orb.setVelocity(Math.cos(spawn.angle) * inheritedSpeed, Math.sin(spawn.angle) * inheritedSpeed);
     this.fighters.push(clone);
+    if (clone.selection.weapon === 'joust') this.scheduleNextJoust(clone, this.time.now);
     this.spark(clone.x, clone.y, source.visualColor, 12);
     gameEvents.emit('battle:event', { kind: 'hit', title: `${source.displayName} CREA CLON`, detail: `${cloneHealth} de vida · habilidades de ${target.displayName}` });
     this.emitHud(true);
@@ -812,6 +842,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.nextShotAt.delete(target.id);
     this.joustNextCharge.delete(target.id);
     this.joustCharging.delete(target.id);
+    this.joustChargeAngles.delete(target.id);
+    target.setInvulnerable(false);
     this.lastBounceHealAt.delete(target.id);
     this.cooldowns.clearFor(target.id);
     target.eliminate();
@@ -835,6 +867,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private onCollisionStart(event: CollisionEvent): void {
     if (this.ending) return;
     for (const pair of event.pairs) {
+      this.stopJoustOnObstacle(pair.bodyA, pair.bodyB);
+      this.stopJoustOnObstacle(pair.bodyB, pair.bodyA);
       const first = this.fighters.find((candidate) => candidate.id === pair.bodyA.label && candidate.alive);
       const second = this.fighters.find((candidate) => candidate.id === pair.bodyB.label && candidate.alive);
       if (first && second) {
@@ -853,6 +887,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.emitHud(true);
       }
     }
+  }
+
+  private stopJoustOnObstacle(fighterBody: MatterJS.BodyType, obstacleBody: MatterJS.BodyType): void {
+    const obstacleLabel = obstacleBody.label ?? '';
+    if (obstacleLabel !== 'arena-wall' && !obstacleLabel.startsWith('turret-')) return;
+    const fighter = this.fighters.find((candidate) => candidate.id === fighterBody.label && candidate.alive);
+    if (fighter) this.stopJoustCharge(fighter);
   }
 
   private applyUnarmedImpact(attacker: Combatant, target: Combatant, body: MatterJS.BodyType): void {

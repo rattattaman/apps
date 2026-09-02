@@ -37,6 +37,7 @@ export class Combatant {
   health: number;
   poisonStacks = 0;
   alive = true;
+  private invulnerable = false;
   private readonly ring: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
 
@@ -100,7 +101,7 @@ export class Combatant {
   }
 
   damage(amount: number): number {
-    if (!this.alive) return 0;
+    if (!this.alive || this.invulnerable) return 0;
     const applied = Math.min(this.health, amount);
     this.health = Math.max(0, this.health - amount);
     this.orb.setTint(0xffffff);
@@ -109,6 +110,8 @@ export class Combatant {
     });
     return applied;
   }
+
+  setInvulnerable(enabled: boolean): void { this.invulnerable = enabled; }
 
   heal(amount: number, allowOverheal = false): number {
     if (!this.alive) return 0;

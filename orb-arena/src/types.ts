@@ -31,6 +31,7 @@ export interface WeaponDefinition {
   initialCutCount?: number;
   initialShurikenBounces?: number;
   initialHealthGain?: number;
+  initialChargeDamage?: number;
   color: number;
   glyph: string;
 }

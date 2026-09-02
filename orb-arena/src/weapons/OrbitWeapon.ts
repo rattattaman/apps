@@ -29,6 +29,7 @@ export class OrbitWeapon {
       cutCount: definition.initialCutCount ?? 0,
       shurikenBounces: definition.initialShurikenBounces ?? 0,
       healthGain: definition.initialHealthGain ?? 1,
+      chargeDamage: definition.initialChargeDamage ?? definition.damage,
     };
     this.graphics = scene.add.graphics().setDepth(5);
   }
@@ -41,6 +42,7 @@ export class OrbitWeapon {
   get cutCount(): number { return this.progress.cutCount; }
   get shurikenBounces(): number { return this.progress.shurikenBounces ?? 0; }
   get healthGain(): number { return this.progress.healthGain ?? 1; }
+  get chargeDamage(): number { return this.progress.chargeDamage ?? 1; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
