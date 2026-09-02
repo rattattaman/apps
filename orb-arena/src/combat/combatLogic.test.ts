@@ -18,7 +18,7 @@ describe('progresión de armas', () => {
     expect(progressAfterHit('wrench', base)).toEqual(base);
     expect(progressAfterHit('katana', base)).toMatchObject({ cutCount: 2 });
     expect(progressAfterHit('joust', { ...base, damage: 1, chargeDamage: 1 })).toMatchObject({ damage: 1, chargeDamage: 3 });
-    expect(progressAfterHit('hammer', { ...base, angularSpeed: 1, maxAngularSpeed: 3 })).toMatchObject({ angularSpeed: 1, maxAngularSpeed: 4 });
+    expect(progressAfterHit('hammer', { ...base, angularSpeed: 2.6, maxAngularSpeed: 3 })).toMatchObject({ angularSpeed: 1, maxAngularSpeed: 4 });
   });
 
   it('copia toda la progresión jugable sin compartir estado mutable', () => {

@@ -48,7 +48,7 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'grimoire': return current;
     case 'joust': return { ...current, chargeDamage: (current.chargeDamage ?? 1) + 2 };
     case 'bottle': return current;
-    case 'hammer': return { ...current, maxAngularSpeed: (current.maxAngularSpeed ?? 3) + 1 };
+    case 'hammer': return { ...current, angularSpeed: 1, maxAngularSpeed: (current.maxAngularSpeed ?? 3) + 1 };
   }
 }
 
