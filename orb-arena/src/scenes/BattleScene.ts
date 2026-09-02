@@ -965,8 +965,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     for (const pair of event.pairs) {
       this.stopJoustOnObstacle(pair.bodyA, pair.bodyB);
       this.stopJoustOnObstacle(pair.bodyB, pair.bodyA);
-      this.registerCrossoverBounce(pair.bodyA, pair.bodyB);
-      this.registerCrossoverBounce(pair.bodyB, pair.bodyA);
+      this.registerCrossoverTurretBounce(pair.bodyA, pair.bodyB);
+      this.registerCrossoverTurretBounce(pair.bodyB, pair.bodyA);
       const first = this.fighters.find((candidate) => candidate.id === pair.bodyA.label && candidate.alive);
       const second = this.fighters.find((candidate) => candidate.id === pair.bodyB.label && candidate.alive);
       if (first && second) {
@@ -989,11 +989,15 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
   }
 
-  private registerCrossoverBounce(fighterBody: MatterJS.BodyType, obstacleBody: MatterJS.BodyType): void {
+  private registerCrossoverTurretBounce(fighterBody: MatterJS.BodyType, obstacleBody: MatterJS.BodyType): void {
     const obstacleLabel = obstacleBody.label ?? '';
-    if (obstacleLabel !== 'arena-wall' && !obstacleLabel.startsWith('turret-')) return;
+    if (!obstacleLabel.startsWith('turret-')) return;
     const fighter = this.fighters.find((candidate) => candidate.id === fighterBody.label && candidate.alive);
-    if (!fighter || !['crusher', 'orbit'].includes(fighter.selection.weapon)) return;
+    if (fighter) this.registerCrossoverProgress(fighter);
+  }
+
+  private registerCrossoverProgress(fighter: Combatant): void {
+    if (!['crusher', 'orbit'].includes(fighter.selection.weapon)) return;
     const progression = fighter.weapon.registerObstacleBounce();
     this.spark(fighter.x, fighter.y, fighter.visualColor, 5);
     this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.visualColorCss, true);
@@ -1037,6 +1041,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       if (!correction.corrected) continue;
       fighter.orb.setPosition(correction.x, correction.y);
       fighter.orb.setVelocity(correction.velocity.x, correction.velocity.y);
+      this.registerCrossoverProgress(fighter);
     }
   }
 
