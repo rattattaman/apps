@@ -4,7 +4,7 @@ import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns, growSlimeDps } from '../combat/combatLogic';
 import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from '../combat/cloneLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, BOTTLE, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, BOTTLE, CHAOS, CROSSOVER, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -112,6 +112,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.updateTurrets(time, deltaSeconds);
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
+    this.updateSatelliteCombat(time);
     this.updateJoust(time);
     this.updateParries(time);
     this.updateRangedWeapons(time);
@@ -433,7 +434,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const alive = this.aliveFighters();
     for (const attacker of alive) {
       if (!attacker.alive) continue;
-      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle'].includes(attacker.selection.weapon)) continue;
+      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of alive) {
         if (target === attacker || !target.alive) continue;
@@ -462,6 +463,24 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         const knockback = attacker.selection.weapon === 'spear' ? 2.5 : charging ? 2.8 : 1.05;
         this.applyDamage(attacker, target, hitDamage, knockback, segment.end.x, segment.end.y, !charging);
         if (attacker.selection.weapon === 'scythe' && target.alive) this.applyPoison(attacker, target);
+      }
+    }
+  }
+
+  private updateSatelliteCombat(now: number): void {
+    const alive = this.aliveFighters();
+    for (const attacker of alive) {
+      if (attacker.selection.weapon !== 'orbit') continue;
+      const satellites = attacker.weapon.satellitePositions();
+      for (let index = 0; index < satellites.length; index += 1) {
+        const satellite = satellites[index] as { x: number; y: number };
+        for (const target of alive) {
+          if (target === attacker || !target.alive) continue;
+          const hitRadius = target.radius + CROSSOVER.satelliteRadius;
+          if (Phaser.Math.Distance.Squared(satellite.x, satellite.y, target.x, target.y) > hitRadius ** 2) continue;
+          if (!this.cooldowns.canTrigger(`${attacker.id}-orbit-${index}`, target.id, now, ARENA.weaponHitCooldownMs)) continue;
+          this.applyDamage(attacker, target, 1, 0.65, satellite.x, satellite.y, false);
+        }
       }
     }
   }
@@ -507,8 +526,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const first = alive[firstIndex] as Combatant;
       for (let secondIndex = firstIndex + 1; secondIndex < alive.length; secondIndex += 1) {
         const second = alive[secondIndex] as Combatant;
-        if (['shield', 'unarmed'].includes(first.selection.weapon)
-          || ['shield', 'unarmed'].includes(second.selection.weapon)) continue;
+        if (['shield', 'unarmed', 'crusher', 'orbit'].includes(first.selection.weapon)
+          || ['shield', 'unarmed', 'crusher', 'orbit'].includes(second.selection.weapon)) continue;
         if (segmentDistanceSquared(first.weapon.segment(), second.weapon.segment()) > 100) continue;
         if (!this.cooldowns.canTrigger(`parry-${first.id}`, second.id, now, ARENA.parryCooldownMs)) continue;
         const firstProgress = first.weapon.parry();
@@ -615,7 +634,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       let blocked = false;
       for (const defender of this.aliveFighters()) {
         if (defender === projectile.owner || now - projectile.lastDeflectedAt < 130) continue;
-        if (defender.selection.weapon === 'unarmed') continue;
+        if (['unarmed', 'crusher', 'orbit'].includes(defender.selection.weapon)) continue;
         if (projectile.kind === 'fireball' && defender.selection.weapon !== 'shield') continue;
         const segment = defender.weapon.segment();
         const blockDistance = defender.selection.weapon === 'shield'
@@ -946,11 +965,15 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     for (const pair of event.pairs) {
       this.stopJoustOnObstacle(pair.bodyA, pair.bodyB);
       this.stopJoustOnObstacle(pair.bodyB, pair.bodyA);
+      this.registerCrossoverBounce(pair.bodyA, pair.bodyB);
+      this.registerCrossoverBounce(pair.bodyB, pair.bodyA);
       const first = this.fighters.find((candidate) => candidate.id === pair.bodyA.label && candidate.alive);
       const second = this.fighters.find((candidate) => candidate.id === pair.bodyB.label && candidate.alive);
       if (first && second) {
         this.applyUnarmedImpact(first, second, pair.bodyA);
         this.applyUnarmedImpact(second, first, pair.bodyB);
+        this.applyCrusherImpact(first, second);
+        this.applyCrusherImpact(second, first);
       }
       if (!this.bounceHealing) continue;
       for (const body of [pair.bodyA, pair.bodyB]) {
@@ -966,6 +989,17 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
   }
 
+  private registerCrossoverBounce(fighterBody: MatterJS.BodyType, obstacleBody: MatterJS.BodyType): void {
+    const obstacleLabel = obstacleBody.label ?? '';
+    if (obstacleLabel !== 'arena-wall' && !obstacleLabel.startsWith('turret-')) return;
+    const fighter = this.fighters.find((candidate) => candidate.id === fighterBody.label && candidate.alive);
+    if (!fighter || !['crusher', 'orbit'].includes(fighter.selection.weapon)) return;
+    const progression = fighter.weapon.registerObstacleBounce();
+    this.spark(fighter.x, fighter.y, fighter.visualColor, 5);
+    this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.visualColorCss, true);
+    this.emitHud(true);
+  }
+
   private stopJoustOnObstacle(fighterBody: MatterJS.BodyType, obstacleBody: MatterJS.BodyType): void {
     const obstacleLabel = obstacleBody.label ?? '';
     if (obstacleLabel !== 'arena-wall' && !obstacleLabel.startsWith('turret-')) return;
@@ -979,6 +1013,12 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const speed = Math.hypot(body.velocity.x, body.velocity.y);
     if (speed <= 0.05) return;
     this.applyDamage(attacker, target, speed, 1.35, target.x, target.y);
+  }
+
+  private applyCrusherImpact(attacker: Combatant, target: Combatant): void {
+    if (attacker.selection.weapon !== 'crusher' || !attacker.alive || !target.alive) return;
+    if (!this.cooldowns.canTrigger(`crusher-${attacker.id}`, target.id, this.time.now, CROSSOVER.bodyHitCooldownMs)) return;
+    this.applyDamage(attacker, target, attacker.weapon.damage, 1.45, target.x, target.y, false);
   }
 
   private resolveWallContacts(): void {

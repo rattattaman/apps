@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceHammerSpin, burstShotDelays, ContactCooldowns, copyWeaponProgress, growSlimeDps, progressAfterHit, type WeaponProgress } from './combatLogic';
+import { advanceHammerSpin, burstShotDelays, ContactCooldowns, copyWeaponProgress, growSlimeDps, progressAfterHit, progressAfterObstacleBounce, type WeaponProgress } from './combatLogic';
 
 const base: WeaponProgress = {
   damage: 8, range: 60, angularSpeed: 2, burstSize: 1, explosionSize: 1, shieldSize: 1, maxSpeed: 3, cutCount: 1,
@@ -54,5 +54,13 @@ describe('mecánicas de Frasco y Martillo', () => {
   it('solo aumenta el DPS de la baba cuando hay un enemigo dentro', () => {
     expect(growSlimeDps(1, false)).toBe(1);
     expect(growSlimeDps(1, true)).toBe(1.2);
+  });
+});
+
+describe('mecánicas de Crossover', () => {
+  it('hace progresar una sola vez la habilidad correspondiente por rebote', () => {
+    expect(progressAfterObstacleBounce('crusher', base)).toMatchObject({ damage: 9 });
+    expect(progressAfterObstacleBounce('orbit', { ...base, satelliteCount: 2 })).toMatchObject({ satelliteCount: 3 });
+    expect(progressAfterObstacleBounce('sword', base)).toBe(base);
   });
 });

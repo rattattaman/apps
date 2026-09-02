@@ -73,6 +73,7 @@ export const SHURIKEN = { fireIntervalMs: 1_450 } as const;
 export const BOTTLE = { fireIntervalMs: 2_250, breakDistance: 235 } as const;
 export const SLIME = { radius: 72, lifetimeMs: 7_000, tickMs: 500, growthIntervalMs: 1_000, baseDps: 1, dpsGrowth: 0.2 } as const;
 export const HAMMER = { spinAcceleration: 0.85 } as const;
+export const CROSSOVER = { satelliteRadius: 7, satelliteOrbitDistance: 50, bodyHitCooldownMs: 360 } as const;
 
 export function fireballExplosionRadius(size: number): number {
   return FIREBALL.baseExplosionRadius + Math.max(0, size - 1) * FIREBALL.explosionRadiusGrowth;
@@ -155,6 +156,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'hammer', name: 'Martillo', glyph: '┫', color: 0x7fc8ff,
     ability: 'Daño igual al giro actual; el máximo aumenta +1 por golpe', damage: 1, range: 62, angularSpeed: 1, initialMaxAngularSpeed: 3,
   },
+  crusher: {
+    type: 'crusher', name: 'Aplastador', glyph: '●', color: 0xff8a4c,
+    ability: 'Sin arma; cada rebote contra una pared o torreta suma +1 de daño', damage: 1, range: 0, angularSpeed: 0,
+  },
+  orbit: {
+    type: 'orbit', name: 'Órbita', glyph: '⦿', color: 0x59e0ff,
+    ability: 'Cada rebote añade una pequeña bola orbital que hace 1 de daño', damage: 0, range: 0, angularSpeed: 2.8, initialSatelliteCount: 0,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -179,4 +188,9 @@ export const SEASON_TWO_FIGHTERS: FighterSelection[] = [
   { name: 'MAUL', weapon: 'hammer', color: 0x7fc8ff, colorCss: '#7fc8ff', season: 2 },
 ];
 
-export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS];
+export const CROSSOVER_FIGHTERS: FighterSelection[] = [
+  { name: 'CRUSH', weapon: 'crusher', color: 0xff8a4c, colorCss: '#ff8a4c', season: 'Crossover' },
+  { name: 'ORBITA', weapon: 'orbit', color: 0x59e0ff, colorCss: '#59e0ff', season: 'Crossover' },
+];
+
+export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS, ...CROSSOVER_FIGHTERS];

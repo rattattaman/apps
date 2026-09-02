@@ -1,13 +1,14 @@
 import Phaser from 'phaser';
 import type { Combatant } from '../combat/Combatant';
-import { ARENA, HAMMER, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
+import { ARENA, CROSSOVER, HAMMER, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
 import type { Segment } from '../utils/geometry';
-import { advanceHammerSpin, copyWeaponProgress, progressAfterHit, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
+import { advanceHammerSpin, copyWeaponProgress, progressAfterHit, progressAfterObstacleBounce, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
 
 export class OrbitWeapon {
   angle: number;
   direction = 1;
   private readonly graphics: Phaser.GameObjects.Graphics;
+  private readonly satelliteGraphics: Phaser.GameObjects.Graphics;
   private progress: WeaponProgress;
   rangeScale = 1;
 
@@ -31,8 +32,10 @@ export class OrbitWeapon {
       healthGain: definition.initialHealthGain ?? 1,
       chargeDamage: definition.initialChargeDamage ?? definition.damage,
       maxAngularSpeed: definition.initialMaxAngularSpeed ?? definition.angularSpeed,
+      satelliteCount: definition.initialSatelliteCount ?? 0,
     };
     this.graphics = scene.add.graphics().setDepth(5);
+    this.satelliteGraphics = scene.add.graphics().setDepth(6);
   }
 
   get damage(): number { return this.progress.damage; }
@@ -46,6 +49,7 @@ export class OrbitWeapon {
   get chargeDamage(): number { return this.progress.chargeDamage ?? 1; }
   get angularSpeed(): number { return this.progress.angularSpeed; }
   get maxAngularSpeed(): number { return this.progress.maxAngularSpeed ?? this.progress.angularSpeed; }
+  get satelliteCount(): number { return this.progress.satelliteCount ?? 0; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
@@ -65,6 +69,23 @@ export class OrbitWeapon {
   registerHit(): string {
     this.progress = progressAfterHit(this.owner.selection.weapon, this.progress);
     return this.progressionText;
+  }
+
+  registerObstacleBounce(): string {
+    this.progress = progressAfterObstacleBounce(this.owner.selection.weapon, this.progress);
+    return this.progressionText;
+  }
+
+  satellitePositions(): Array<{ x: number; y: number }> {
+    const count = this.satelliteCount;
+    if (count <= 0) return [];
+    return Array.from({ length: count }, (_, index) => {
+      const angle = this.angle + index * Math.PI * 2 / count;
+      return {
+        x: this.owner.x + Math.cos(angle) * CROSSOVER.satelliteOrbitDistance,
+        y: this.owner.y + Math.sin(angle) * CROSSOVER.satelliteOrbitDistance,
+      };
+    });
   }
 
   parry(): string | null {
@@ -99,12 +120,14 @@ export class OrbitWeapon {
 
   destroy(): void {
     this.graphics.destroy();
+    this.satelliteGraphics.destroy();
   }
 
   private draw(): void {
+    this.drawSatellites();
     const type = this.owner.visualWeaponType;
     const definition = WEAPONS[type];
-    if (type === 'unarmed') {
+    if (type === 'unarmed' || type === 'crusher' || type === 'orbit') {
       this.graphics.clear();
       return;
     }
@@ -222,6 +245,19 @@ export class OrbitWeapon {
       .fillTriangle(length, 0, length - (type === 'spear' ? 22 : 14), -8, length - (type === 'spear' ? 22 : 14), 8);
     if (type === 'sword') {
       this.graphics.lineStyle(5, 0xe9edf5, 1).beginPath().moveTo(4, -11).lineTo(4, 11).strokePath();
+    }
+  }
+
+  private drawSatellites(): void {
+    this.satelliteGraphics.clear();
+    if (this.owner.selection.weapon !== 'orbit') return;
+    for (const position of this.satellitePositions()) {
+      this.satelliteGraphics.fillStyle(this.owner.visualColor, 0.2)
+        .fillCircle(position.x, position.y, CROSSOVER.satelliteRadius + 4)
+        .fillStyle(0xdffaff, 1)
+        .fillCircle(position.x, position.y, CROSSOVER.satelliteRadius)
+        .lineStyle(2, this.owner.visualColor, 0.95)
+        .strokeCircle(position.x, position.y, CROSSOVER.satelliteRadius);
     }
   }
 

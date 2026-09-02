@@ -1,4 +1,4 @@
-export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield', 'scythe', 'unarmed', 'wrench', 'katana', 'joust', 'shuriken', 'grimoire', 'scepter', 'bottle', 'hammer'] as const;
+export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield', 'scythe', 'unarmed', 'wrench', 'katana', 'joust', 'shuriken', 'grimoire', 'scepter', 'bottle', 'hammer', 'crusher', 'orbit'] as const;
 
 export type WeaponType = typeof WEAPON_TYPES[number];
 
@@ -7,7 +7,7 @@ export interface FighterSelection {
   weapon: WeaponType;
   color: number;
   colorCss: string;
-  season: number;
+  season: number | 'Crossover';
 }
 
 export interface BattleConfig {
@@ -33,6 +33,7 @@ export interface WeaponDefinition {
   initialHealthGain?: number;
   initialChargeDamage?: number;
   initialMaxAngularSpeed?: number;
+  initialSatelliteCount?: number;
   color: number;
   glyph: string;
 }

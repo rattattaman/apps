@@ -148,6 +148,10 @@ function initialHud(config: BattleConfig): FighterHudState[] {
                     ? 'BABA DPS CRECIENTE'
                     : fighter.weapon === 'hammer'
                       ? `GIRO ${WEAPONS.hammer.angularSpeed}/${WEAPONS.hammer.initialMaxAngularSpeed ?? 3}`
+                      : fighter.weapon === 'crusher'
+                        ? `DAÑO ${WEAPONS.crusher.damage}`
+                        : fighter.weapon === 'orbit'
+                          ? `ÓRBITAS ×${WEAPONS.orbit.initialSatelliteCount ?? 0}`
                   : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }
