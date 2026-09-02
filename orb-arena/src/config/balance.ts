@@ -73,7 +73,7 @@ export const SHURIKEN = { fireIntervalMs: 1_450 } as const;
 export const BOTTLE = { fireIntervalMs: 2_250, breakDistance: 235 } as const;
 export const SLIME = { radius: 72, lifetimeMs: 7_000, tickMs: 500, growthIntervalMs: 1_000, baseDps: 1, dpsGrowth: 0.2 } as const;
 export const HAMMER = { spinAcceleration: 0.85 } as const;
-export const CROSSOVER = { satelliteRadius: 7, satelliteOrbitDistance: 50, bodyHitCooldownMs: 360 } as const;
+export const CROSSOVER = { satelliteRadius: 7, satelliteOrbitDistance: 60, bodyHitCooldownMs: 360 } as const;
 
 export function fireballExplosionRadius(size: number): number {
   return FIREBALL.baseExplosionRadius + Math.max(0, size - 1) * FIREBALL.explosionRadiusGrowth;
