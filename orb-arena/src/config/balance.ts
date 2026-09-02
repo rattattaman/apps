@@ -73,7 +73,14 @@ export const SHURIKEN = { fireIntervalMs: 1_450 } as const;
 export const BOTTLE = { fireIntervalMs: 2_250, breakDistance: 235 } as const;
 export const SLIME = { radius: 72, lifetimeMs: 7_000, tickMs: 500, growthIntervalMs: 1_000, baseDps: 1, dpsGrowth: 0.2 } as const;
 export const HAMMER = { spinAcceleration: 0.85 } as const;
-export const CROSSOVER = { satelliteRadius: 7, satelliteOrbitDistance: 60, bodyHitCooldownMs: 360 } as const;
+export const CROSSOVER = {
+  satelliteRadius: 7,
+  satelliteOrbitDistance: 60,
+  bodyHitCooldownMs: 360,
+  giantRadiusGrowth: 2,
+  laserCooldownReductionMs: 50,
+  laserMinimumCooldownMs: 150,
+} as const;
 
 export function fireballExplosionRadius(size: number): number {
   return FIREBALL.baseExplosionRadius + Math.max(0, size - 1) * FIREBALL.explosionRadiusGrowth;
@@ -164,6 +171,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'orbit', name: 'Órbita', glyph: '⦿', color: 0x59e0ff,
     ability: 'Cada rebote añade una pequeña bola orbital que hace 1 de daño', damage: 0, range: 0, angularSpeed: 2.8, initialSatelliteCount: 0,
   },
+  giant: {
+    type: 'giant', name: 'Grande', glyph: '⬤', color: 0xe59cff,
+    ability: 'Sin arma; cada rebote contra una pared o torreta aumenta su tamaño', damage: 0, range: 0, angularSpeed: 0, initialSizeLevel: 0,
+  },
+  laser: {
+    type: 'laser', name: 'Láser', glyph: '━', color: 0xff5a70,
+    ability: 'Su tiempo de recarga disminuye cada vez que el rayo golpea', damage: 1, range: 180, angularSpeed: 2.05, initialLaserCooldownMs: 900,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -191,6 +206,8 @@ export const SEASON_TWO_FIGHTERS: FighterSelection[] = [
 export const CROSSOVER_FIGHTERS: FighterSelection[] = [
   { name: 'CRUSH', weapon: 'crusher', color: 0xff8a4c, colorCss: '#ff8a4c', season: 'Crossover' },
   { name: 'ORBITA', weapon: 'orbit', color: 0x59e0ff, colorCss: '#59e0ff', season: 'Crossover' },
+  { name: 'GRANDE', weapon: 'giant', color: 0xe59cff, colorCss: '#e59cff', season: 'Crossover' },
+  { name: 'LASER', weapon: 'laser', color: 0xff5a70, colorCss: '#ff5a70', season: 'Crossover' },
 ];
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS, ...CROSSOVER_FIGHTERS];

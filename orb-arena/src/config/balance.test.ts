@@ -46,10 +46,12 @@ describe('arenaSizeForFighterCount', () => {
   });
 
   it('abre Crossover con Aplastador y Órbita', () => {
-    expect(CROSSOVER_FIGHTERS).toHaveLength(2);
+    expect(CROSSOVER_FIGHTERS).toHaveLength(4);
     expect(CROSSOVER_FIGHTERS.every((fighter) => fighter.season === 'Crossover')).toBe(true);
     expect(WEAPONS.crusher.damage).toBe(1);
     expect(WEAPONS.orbit.initialSatelliteCount).toBe(0);
+    expect(WEAPONS.giant.initialSizeLevel).toBe(0);
+    expect(WEAPONS.laser.initialLaserCooldownMs).toBe(900);
   });
 });
 

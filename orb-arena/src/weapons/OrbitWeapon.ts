@@ -9,6 +9,7 @@ export class OrbitWeapon {
   direction = 1;
   private readonly graphics: Phaser.GameObjects.Graphics;
   private readonly satelliteGraphics: Phaser.GameObjects.Graphics;
+  private readonly laserGraphics: Phaser.GameObjects.Graphics;
   private progress: WeaponProgress;
   rangeScale = 1;
 
@@ -33,9 +34,12 @@ export class OrbitWeapon {
       chargeDamage: definition.initialChargeDamage ?? definition.damage,
       maxAngularSpeed: definition.initialMaxAngularSpeed ?? definition.angularSpeed,
       satelliteCount: definition.initialSatelliteCount ?? 0,
+      sizeLevel: definition.initialSizeLevel ?? 0,
+      laserCooldownMs: definition.initialLaserCooldownMs ?? 900,
     };
     this.graphics = scene.add.graphics().setDepth(5);
     this.satelliteGraphics = scene.add.graphics().setDepth(6);
+    this.laserGraphics = scene.add.graphics().setDepth(5);
   }
 
   get damage(): number { return this.progress.damage; }
@@ -50,6 +54,8 @@ export class OrbitWeapon {
   get angularSpeed(): number { return this.progress.angularSpeed; }
   get maxAngularSpeed(): number { return this.progress.maxAngularSpeed ?? this.progress.angularSpeed; }
   get satelliteCount(): number { return this.progress.satelliteCount ?? 0; }
+  get sizeLevel(): number { return this.progress.sizeLevel ?? 0; }
+  get laserCooldownMs(): number { return this.progress.laserCooldownMs ?? 900; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
@@ -101,6 +107,7 @@ export class OrbitWeapon {
 
   segment(): Segment {
     if (this.owner.selection.weapon === 'shield') return this.shieldSegment();
+    if (this.owner.selection.weapon === 'laser') return this.laserSegment();
     return this.radialSegment();
   }
 
@@ -121,13 +128,15 @@ export class OrbitWeapon {
   destroy(): void {
     this.graphics.destroy();
     this.satelliteGraphics.destroy();
+    this.laserGraphics.destroy();
   }
 
   private draw(): void {
     this.drawSatellites();
+    this.drawLaserAbility();
     const type = this.owner.visualWeaponType;
     const definition = WEAPONS[type];
-    if (type === 'unarmed' || type === 'crusher' || type === 'orbit') {
+    if (type === 'unarmed' || type === 'crusher' || type === 'orbit' || type === 'giant' || type === 'laser') {
       this.graphics.clear();
       return;
     }
@@ -259,6 +268,31 @@ export class OrbitWeapon {
         .lineStyle(2, this.owner.visualColor, 0.95)
         .strokeCircle(position.x, position.y, CROSSOVER.satelliteRadius);
     }
+  }
+
+  private drawLaserAbility(): void {
+    this.laserGraphics.clear();
+    if (this.owner.selection.weapon !== 'laser') return;
+    const segment = this.laserSegment();
+    const length = Phaser.Math.Distance.Between(segment.start.x, segment.start.y, segment.end.x, segment.end.y);
+    this.laserGraphics.setPosition(segment.start.x, segment.start.y).setRotation(this.angle)
+      .lineStyle(13, this.owner.visualColor, 0.12)
+      .beginPath().moveTo(0, 0).lineTo(length, 0).strokePath()
+      .lineStyle(5, this.owner.visualColor, 0.9)
+      .beginPath().moveTo(0, 0).lineTo(length, 0).strokePath()
+      .lineStyle(2, 0xffffff, 0.95)
+      .beginPath().moveTo(0, 0).lineTo(length, 0).strokePath()
+      .fillStyle(0xffffff, 0.95).fillCircle(length, 0, 4);
+  }
+
+  private laserSegment(): Segment {
+    return {
+      start: { x: this.owner.x, y: this.owner.y },
+      end: {
+        x: this.owner.x + Math.cos(this.angle) * this.range,
+        y: this.owner.y + Math.sin(this.angle) * this.range,
+      },
+    };
   }
 
   private shieldSegment(): Segment {

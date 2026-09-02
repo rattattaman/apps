@@ -152,6 +152,10 @@ function initialHud(config: BattleConfig): FighterHudState[] {
                         ? `DAÑO ${WEAPONS.crusher.damage}`
                         : fighter.weapon === 'orbit'
                           ? `ÓRBITAS ×${WEAPONS.orbit.initialSatelliteCount ?? 0}`
+                          : fighter.weapon === 'giant'
+                            ? `TAMAÑO +${WEAPONS.giant.initialSizeLevel ?? 0}`
+                            : fighter.weapon === 'laser'
+                              ? `RECARGA ${WEAPONS.laser.initialLaserCooldownMs ?? 900} MS`
                   : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }

@@ -72,6 +72,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private nextHudAt = 0;
   private nextShrinkAt = ARENA.battleLimitMs + 8_000;
   private readonly nextShotAt = new Map<string, number>();
+  private readonly nextLaserHitAt = new Map<string, number>();
   private readonly joustNextCharge = new Map<string, number>();
   private readonly joustCharging = new Set<string>();
   private readonly joustChargeAngles = new Map<string, number>();
@@ -113,6 +114,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
     this.updateSatelliteCombat(time);
+    this.updateLaserCombat(time);
     this.updateJoust(time);
     this.updateParries(time);
     this.updateRangedWeapons(time);
@@ -225,6 +227,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.nextHudAt = 0;
     this.nextShrinkAt = ARENA.battleLimitMs + 8_000;
     this.nextShotAt.clear();
+    this.nextLaserHitAt.clear();
     this.joustNextCharge.clear();
     this.joustCharging.clear();
     this.joustChargeAngles.clear();
@@ -434,7 +437,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const alive = this.aliveFighters();
     for (const attacker of alive) {
       if (!attacker.alive) continue;
-      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit'].includes(attacker.selection.weapon)) continue;
+      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit', 'giant', 'laser'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of alive) {
         if (target === attacker || !target.alive) continue;
@@ -485,6 +488,23 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
   }
 
+  private updateLaserCombat(now: number): void {
+    const alive = this.aliveFighters();
+    for (const attacker of alive) {
+      if (attacker.selection.weapon !== 'laser' || now < (this.nextLaserHitAt.get(attacker.id) ?? 0)) continue;
+      const segment = attacker.weapon.segment();
+      const target = alive
+        .filter((candidate) => candidate !== attacker && candidate.alive
+          && pointToSegmentDistanceSquared(candidate, segment) <= (candidate.radius + 3) ** 2)
+        .sort((first, second) => Phaser.Math.Distance.Squared(attacker.x, attacker.y, first.x, first.y)
+          - Phaser.Math.Distance.Squared(attacker.x, attacker.y, second.x, second.y))[0];
+      if (!target) continue;
+      const previousHealth = target.health;
+      this.applyDamage(attacker, target, attacker.weapon.damage, 0.35, target.x, target.y);
+      if (target.health < previousHealth) this.nextLaserHitAt.set(attacker.id, now + attacker.weapon.laserCooldownMs);
+    }
+  }
+
   private updateJoust(now: number): void {
     for (const fighter of this.aliveFighters()) {
       if (fighter.selection.weapon !== 'joust') continue;
@@ -526,8 +546,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const first = alive[firstIndex] as Combatant;
       for (let secondIndex = firstIndex + 1; secondIndex < alive.length; secondIndex += 1) {
         const second = alive[secondIndex] as Combatant;
-        if (['shield', 'unarmed', 'crusher', 'orbit'].includes(first.selection.weapon)
-          || ['shield', 'unarmed', 'crusher', 'orbit'].includes(second.selection.weapon)) continue;
+        if (['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser'].includes(first.selection.weapon)
+          || ['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser'].includes(second.selection.weapon)) continue;
         if (segmentDistanceSquared(first.weapon.segment(), second.weapon.segment()) > 100) continue;
         if (!this.cooldowns.canTrigger(`parry-${first.id}`, second.id, now, ARENA.parryCooldownMs)) continue;
         const firstProgress = first.weapon.parry();
@@ -634,7 +654,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       let blocked = false;
       for (const defender of this.aliveFighters()) {
         if (defender === projectile.owner || now - projectile.lastDeflectedAt < 130) continue;
-        if (['unarmed', 'crusher', 'orbit'].includes(defender.selection.weapon)) continue;
+        if (['unarmed', 'crusher', 'orbit', 'giant', 'laser'].includes(defender.selection.weapon)) continue;
         if (projectile.kind === 'fireball' && defender.selection.weapon !== 'shield') continue;
         const segment = defender.weapon.segment();
         const blockDistance = defender.selection.weapon === 'shield'
@@ -936,6 +956,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const { x, y } = target;
     this.poisonEffects.delete(target.id);
     this.nextShotAt.delete(target.id);
+    this.nextLaserHitAt.delete(target.id);
     this.joustNextCharge.delete(target.id);
     this.joustCharging.delete(target.id);
     this.joustChargeAngles.delete(target.id);
@@ -997,8 +1018,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private registerCrossoverProgress(fighter: Combatant): void {
-    if (!['crusher', 'orbit'].includes(fighter.selection.weapon)) return;
+    if (!['crusher', 'orbit', 'giant'].includes(fighter.selection.weapon)) return;
     const progression = fighter.weapon.registerObstacleBounce();
+    if (fighter.selection.weapon === 'giant') fighter.growRadius(CROSSOVER.giantRadiusGrowth);
     this.spark(fighter.x, fighter.y, fighter.visualColor, 5);
     this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.visualColorCss, true);
     this.emitHud(true);

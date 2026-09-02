@@ -27,7 +27,7 @@ export class Combatant {
   readonly weapon: OrbitWeapon;
   readonly selection: FighterSelection;
   readonly maxHealth: number;
-  readonly radius: number;
+  radius: number;
   readonly isClone: boolean;
   readonly canClone: boolean;
   readonly cloneOwnerId?: string;
@@ -124,6 +124,15 @@ export class Combatant {
     if (!this.alive) return this.poisonStacks;
     this.poisonStacks += amount;
     return this.poisonStacks;
+  }
+
+  growRadius(amount: number): number {
+    if (!this.alive || amount <= 0) return this.radius;
+    const previousRadius = this.radius;
+    this.radius += amount;
+    const scaleFactor = this.radius / previousRadius;
+    this.orb.setScale(this.orb.scaleX * scaleFactor, this.orb.scaleY * scaleFactor);
+    return this.radius;
   }
 
   eliminate(): void {

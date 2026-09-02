@@ -61,6 +61,12 @@ describe('mecánicas de Crossover', () => {
   it('hace progresar una sola vez la habilidad correspondiente por rebote', () => {
     expect(progressAfterObstacleBounce('crusher', base)).toMatchObject({ damage: 9 });
     expect(progressAfterObstacleBounce('orbit', { ...base, satelliteCount: 2 })).toMatchObject({ satelliteCount: 3 });
+    expect(progressAfterObstacleBounce('giant', { ...base, sizeLevel: 2 })).toMatchObject({ sizeLevel: 3 });
     expect(progressAfterObstacleBounce('sword', base)).toBe(base);
+  });
+
+  it('reduce la recarga del láser sin bajar del mínimo seguro', () => {
+    expect(progressAfterHit('laser', { ...base, laserCooldownMs: 900 })).toMatchObject({ laserCooldownMs: 850 });
+    expect(progressAfterHit('laser', { ...base, laserCooldownMs: 160 })).toMatchObject({ laserCooldownMs: 150 });
   });
 });

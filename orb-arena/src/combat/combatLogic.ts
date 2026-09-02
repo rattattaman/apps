@@ -1,4 +1,5 @@
 import type { WeaponType } from '../types';
+import { CROSSOVER } from '../config/balance';
 
 export interface WeaponProgress {
   damage: number;
@@ -14,6 +15,8 @@ export interface WeaponProgress {
   chargeDamage?: number;
   maxAngularSpeed?: number;
   satelliteCount?: number;
+  sizeLevel?: number;
+  laserCooldownMs?: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -35,6 +38,7 @@ export function growSlimeDps(current: number, hasEnemy: boolean, growth = 0.2): 
 export function progressAfterObstacleBounce(type: WeaponType, current: WeaponProgress): WeaponProgress {
   if (type === 'crusher') return { ...current, damage: current.damage + 1 };
   if (type === 'orbit') return { ...current, satelliteCount: (current.satelliteCount ?? 0) + 1 };
+  if (type === 'giant') return { ...current, sizeLevel: (current.sizeLevel ?? 0) + 1 };
   return current;
 }
 
@@ -57,7 +61,15 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'bottle': return current;
     case 'hammer': return { ...current, angularSpeed: 1, maxAngularSpeed: (current.maxAngularSpeed ?? 3) + 1 };
     case 'crusher':
-    case 'orbit': return current;
+    case 'orbit':
+    case 'giant': return current;
+    case 'laser': return {
+      ...current,
+      laserCooldownMs: Math.max(
+        CROSSOVER.laserMinimumCooldownMs,
+        (current.laserCooldownMs ?? 900) - CROSSOVER.laserCooldownReductionMs,
+      ),
+    };
   }
 }
 
@@ -81,6 +93,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'hammer': return `GIRO ${format(progress.angularSpeed)}/${format(progress.maxAngularSpeed ?? 3)}`;
     case 'crusher': return `DAÑO ${format(progress.damage)}`;
     case 'orbit': return `ÓRBITAS ×${progress.satelliteCount ?? 0}`;
+    case 'giant': return `TAMAÑO +${progress.sizeLevel ?? 0}`;
+    case 'laser': return `RECARGA ${progress.laserCooldownMs ?? 900} MS`;
   }
 }
 
