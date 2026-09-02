@@ -12,6 +12,7 @@ export interface WeaponProgress {
   shurikenBounces?: number;
   healthGain?: number;
   chargeDamage?: number;
+  maxAngularSpeed?: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -20,6 +21,14 @@ export function burstShotDelays(count: number, spacingMs: number): number[] {
 
 export function copyWeaponProgress(source: WeaponProgress): WeaponProgress {
   return { ...source };
+}
+
+export function advanceHammerSpin(current: number, maximum: number, acceleration: number, deltaSeconds: number): number {
+  return Math.min(maximum, current + acceleration * Math.max(0, deltaSeconds));
+}
+
+export function growSlimeDps(current: number, hasEnemy: boolean, growth = 0.2): number {
+  return hasEnemy ? current + growth : current;
 }
 
 export function progressAfterHit(type: WeaponType, current: WeaponProgress): WeaponProgress {
@@ -38,6 +47,8 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'scepter': return { ...current, damage: current.damage + (current.healthGain ?? 1), healthGain: (current.healthGain ?? 1) + 0.5 };
     case 'grimoire': return current;
     case 'joust': return { ...current, chargeDamage: (current.chargeDamage ?? 1) + 2 };
+    case 'bottle': return current;
+    case 'hammer': return { ...current, maxAngularSpeed: (current.maxAngularSpeed ?? 3) + 1 };
   }
 }
 
@@ -57,6 +68,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'shuriken': return `REBOTES ${format(progress.shurikenBounces ?? 0)}`;
     case 'scepter': return `DAÑO ${format(progress.damage)} · VIDA +${format(progress.healthGain ?? 1)}`;
     case 'grimoire': return 'CLONES ACTIVOS';
+    case 'bottle': return 'BABA DPS CRECIENTE';
+    case 'hammer': return `GIRO ${format(progress.angularSpeed)}/${format(progress.maxAngularSpeed ?? 3)}`;
   }
 }
 

@@ -144,6 +144,10 @@ function initialHud(config: BattleConfig): FighterHudState[] {
                 ? 'TORRETA ACTIVA'
                 : fighter.weapon === 'katana'
                   ? `CORTES ×${WEAPONS.katana.initialCutCount ?? 1}`
+                  : fighter.weapon === 'bottle'
+                    ? 'BABA DPS CRECIENTE'
+                    : fighter.weapon === 'hammer'
+                      ? `GIRO ${WEAPONS.hammer.angularSpeed}/${WEAPONS.hammer.initialMaxAngularSpeed ?? 3}`
                   : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }

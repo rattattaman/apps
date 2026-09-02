@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import type { Combatant } from '../combat/Combatant';
-import { ARENA, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
+import { ARENA, HAMMER, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
 import type { Segment } from '../utils/geometry';
-import { copyWeaponProgress, progressAfterHit, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
+import { advanceHammerSpin, copyWeaponProgress, progressAfterHit, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
 
 export class OrbitWeapon {
   angle: number;
@@ -30,6 +30,7 @@ export class OrbitWeapon {
       shurikenBounces: definition.initialShurikenBounces ?? 0,
       healthGain: definition.initialHealthGain ?? 1,
       chargeDamage: definition.initialChargeDamage ?? definition.damage,
+      maxAngularSpeed: definition.initialMaxAngularSpeed ?? definition.angularSpeed,
     };
     this.graphics = scene.add.graphics().setDepth(5);
   }
@@ -43,6 +44,8 @@ export class OrbitWeapon {
   get shurikenBounces(): number { return this.progress.shurikenBounces ?? 0; }
   get healthGain(): number { return this.progress.healthGain ?? 1; }
   get chargeDamage(): number { return this.progress.chargeDamage ?? 1; }
+  get angularSpeed(): number { return this.progress.angularSpeed; }
+  get maxAngularSpeed(): number { return this.progress.maxAngularSpeed ?? this.progress.angularSpeed; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
@@ -52,6 +55,9 @@ export class OrbitWeapon {
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
 
   update(deltaSeconds: number, spinDirection: number): void {
+    if (this.owner.selection.weapon === 'hammer') {
+      this.progress.angularSpeed = advanceHammerSpin(this.progress.angularSpeed, this.maxAngularSpeed, HAMMER.spinAcceleration, deltaSeconds);
+    }
     this.angle += this.progress.angularSpeed * this.direction * spinDirection * deltaSeconds;
     this.draw();
   }
@@ -189,6 +195,23 @@ export class OrbitWeapon {
         .fillStyle(definition.color, 1).fillCircle(length - 5, 0, 11)
         .lineStyle(3, 0xffffff, 0.9).strokeCircle(length - 5, 0, 7)
         .fillStyle(0xfff4bc, 1).fillCircle(length - 7, -2, 3);
+      return;
+    }
+    if (type === 'bottle') {
+      const vialX = length - 18;
+      this.graphics.lineStyle(4, 0xa9bac0, 1).beginPath().moveTo(0, 0).lineTo(vialX, 0).strokePath()
+        .fillStyle(0xc8f7d0, 0.9).fillRoundedRect(vialX, -12, 25, 24, 5)
+        .fillStyle(definition.color, 0.9).fillRect(vialX + 4, 0, 17, 8)
+        .fillStyle(0x6f4c2f, 1).fillRect(vialX + 8, -17, 9, 7)
+        .lineStyle(2, 0xffffff, 0.8).strokeRoundedRect(vialX, -12, 25, 24, 5);
+      return;
+    }
+    if (type === 'hammer') {
+      const headX = length - 24;
+      this.graphics.lineStyle(8, 0x8b6747, 1).beginPath().moveTo(0, 0).lineTo(headX + 12, 0).strokePath()
+        .fillStyle(0x526676, 1).fillRoundedRect(headX, -17, 30, 34, 4)
+        .lineStyle(3, definition.color, 1).strokeRoundedRect(headX, -17, 30, 34, 4)
+        .lineStyle(2, 0xdff4ff, 0.8).beginPath().moveTo(headX + 5, -12).lineTo(headX + 24, -12).strokePath();
       return;
     }
     const thickness = type === 'dagger' ? 7 : type === 'spear' ? 4 : 6;

@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
-import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
+import { burstShotDelays, ContactCooldowns, growSlimeDps } from '../combat/combatLogic';
 import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from '../combat/cloneLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, TURRET, UNARMED } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, BOTTLE, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -33,6 +33,15 @@ interface TurretState {
   nextShotAt: number;
 }
 
+interface SlimeZone {
+  owner: Combatant;
+  sprite: Phaser.GameObjects.Arc;
+  dps: number;
+  expiresAt: number;
+  nextTickAt: number;
+  nextGrowthAt: number;
+}
+
 const PREVIEW_CONFIG: BattleConfig = {
   seed: 'ORB-ARENA', startingHealth: 100, chaosMode: false, fighters: DEFAULT_FIGHTERS,
 };
@@ -41,6 +50,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private fighters: Combatant[] = [];
   private projectiles: Projectile[] = [];
   private turrets: TurretState[] = [];
+  private slimeZones: SlimeZone[] = [];
   private walls: MatterJS.BodyType[] = [];
   private readonly cooldowns = new ContactCooldowns();
   private readonly audio = new SoundEngine();
@@ -106,6 +116,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.updateParries(time);
     this.updateRangedWeapons(time);
     this.updateProjectiles(time);
+    this.updateSlimeZones(time);
     this.updatePoison(time);
     this.chaosController?.update(elapsed);
     this.preventEndlessBattle(elapsed);
@@ -198,6 +209,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.fighters = [];
     this.projectiles = [];
     this.turrets = [];
+    this.slimeZones = [];
     this.walls = [];
     this.chaosController = null;
     this.arenaInset = ARENA.padding;
@@ -260,6 +272,15 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         .fillTriangle(0, 12, 9, 8, 9, 16)
         .fillStyle(0x27314c, 1).fillCircle(12, 12, 4);
       graphics.generateTexture('shuriken', 24, 24);
+      graphics.destroy();
+    }
+    if (!this.textures.exists('bottle')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      graphics.fillStyle(0xdaf7df, 0.95).fillRoundedRect(4, 7, 16, 18, 5)
+        .fillStyle(0x68e072, 1).fillRect(6, 15, 12, 8)
+        .fillStyle(0x704b2f, 1).fillRect(8, 2, 8, 7)
+        .lineStyle(2, 0xffffff, 0.85).strokeRoundedRect(4, 7, 16, 18, 5);
+      graphics.generateTexture('bottle', 24, 28);
       graphics.destroy();
     }
     if (!this.textures.exists('turret')) {
@@ -412,7 +433,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const alive = this.aliveFighters();
     for (const attacker of alive) {
       if (!attacker.alive) continue;
-      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken'].includes(attacker.selection.weapon)) continue;
+      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of alive) {
         if (target === attacker || !target.alive) continue;
@@ -435,7 +456,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
           continue;
         }
         const charging = attacker.selection.weapon === 'joust' && this.joustCharging.has(attacker.id);
-        const hitDamage = charging ? attacker.weapon.chargeDamage : attacker.weapon.damage;
+        const hitDamage = charging
+          ? attacker.weapon.chargeDamage
+          : attacker.selection.weapon === 'hammer' ? attacker.weapon.angularSpeed : attacker.weapon.damage;
         const knockback = attacker.selection.weapon === 'spear' ? 2.5 : charging ? 2.8 : 1.05;
         this.applyDamage(attacker, target, hitDamage, knockback, segment.end.x, segment.end.y, !charging);
         if (attacker.selection.weapon === 'scythe' && target.alive) this.applyPoison(attacker, target);
@@ -505,7 +528,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private updateRangedWeapons(now: number): void {
     for (const fighter of this.aliveFighters()) {
-      if (fighter.selection.weapon !== 'bow' && fighter.selection.weapon !== 'wand' && fighter.selection.weapon !== 'shuriken') continue;
+      if (!['bow', 'wand', 'shuriken', 'bottle'].includes(fighter.selection.weapon)) continue;
       if (now < (this.nextShotAt.get(fighter.id) ?? 0)) continue;
       const target = this.nearestRival(fighter);
       if (!target) continue;
@@ -533,6 +556,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.nextShotAt.set(fighter.id, now + SHURIKEN.fireIntervalMs);
         const start = fighter.weapon.segment().end;
         this.projectiles.push(new Projectile(this, fighter, fighter.weapon.damage, start.x, start.y, fighter.weapon.angle, this.projectileSequence++, 'shuriken', 0, Math.floor(fighter.weapon.shurikenBounces)));
+        this.audio.shot();
+        continue;
+      }
+      if (fighter.selection.weapon === 'bottle') {
+        this.nextShotAt.set(fighter.id, now + BOTTLE.fireIntervalMs);
+        const start = fighter.weapon.segment().end;
+        this.projectiles.push(new Projectile(this, fighter, 0, start.x, start.y, fighter.weapon.angle, this.projectileSequence++, 'bottle'));
         this.audio.shot();
         continue;
       }
@@ -565,8 +595,14 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     for (const projectile of this.projectiles) {
       projectile.update(now);
       if (!projectile.alive) continue;
+      if (projectile.shouldBreakBottle()) {
+        this.spawnSlime(projectile.owner, projectile.x, projectile.y);
+        projectile.destroy();
+        continue;
+      }
       if (projectile.x < inset || projectile.x > this.arenaSize - inset || projectile.y < inset || projectile.y > this.arenaSize - inset) {
         if (projectile.kind === 'fireball') this.explodeFireball(projectile);
+        if (projectile.kind === 'bottle') this.spawnSlime(projectile.owner, projectile.x, projectile.y);
         if (projectile.kind === 'shuriken' && projectile.canBounce()) {
           const vx = (projectile.sprite.body as MatterJS.BodyType).velocity.x;
           const vy = (projectile.sprite.body as MatterJS.BodyType).velocity.y;
@@ -606,6 +642,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > (target.radius + projectile.hitRadius) ** 2) continue;
         if (projectile.kind === 'fireball') {
           this.explodeFireball(projectile);
+        } else if (projectile.kind === 'bottle') {
+          this.spawnSlime(projectile.owner, projectile.x, projectile.y);
         } else if (projectile.kind === 'bolt') {
           this.applyTurretDamage(projectile.owner, target, projectile.damage, projectile.x, projectile.y);
         } else {
@@ -616,6 +654,45 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       }
     }
     this.projectiles = this.projectiles.filter((projectile) => projectile.alive);
+  }
+
+  private spawnSlime(owner: Combatant, x: number, y: number): void {
+    const inset = this.arenaInset + SLIME.radius;
+    const safeX = Phaser.Math.Clamp(x, inset, this.arenaSize - inset);
+    const safeY = Phaser.Math.Clamp(y, inset, this.arenaSize - inset);
+    const sprite = this.add.circle(safeX, safeY, SLIME.radius, 0x4fd65f, 0.3)
+      .setStrokeStyle(3, 0x9eff80, 0.62).setDepth(2);
+    this.slimeZones.push({
+      owner, sprite, dps: SLIME.baseDps,
+      expiresAt: this.time.now + SLIME.lifetimeMs,
+      nextTickAt: this.time.now + SLIME.tickMs,
+      nextGrowthAt: this.time.now + SLIME.growthIntervalMs,
+    });
+    this.spark(safeX, safeY, 0x68e072, 10);
+  }
+
+  private updateSlimeZones(now: number): void {
+    for (const zone of this.slimeZones) {
+      if (now >= zone.expiresAt) { zone.sprite.destroy(); continue; }
+      const occupants = this.aliveFighters().filter((fighter) => fighter !== zone.owner
+        && Phaser.Math.Distance.Squared(fighter.x, fighter.y, zone.sprite.x, zone.sprite.y) <= (SLIME.radius + fighter.radius) ** 2);
+      if (occupants.length === 0) continue;
+      if (now >= zone.nextGrowthAt) {
+        zone.dps = growSlimeDps(zone.dps, true, SLIME.dpsGrowth);
+        zone.nextGrowthAt = now + SLIME.growthIntervalMs;
+        zone.sprite.setAlpha(Math.min(0.65, 0.3 + zone.dps * 0.035));
+      }
+      if (now < zone.nextTickAt) continue;
+      zone.nextTickAt = now + SLIME.tickMs;
+      for (const target of occupants) {
+        const applied = target.damage(zone.dps * SLIME.tickMs / 1_000);
+        if (applied <= 0) continue;
+        this.floatText(target.x, target.y - 25, `−${applied.toFixed(1)}`, '#8cff79', true);
+        if (target.health <= 0) this.eliminate(target, zone.owner);
+      }
+      this.emitHud(true);
+    }
+    this.slimeZones = this.slimeZones.filter((zone) => now < zone.expiresAt);
   }
 
   private applyKatanaStrike(attacker: Combatant, target: Combatant, impactX: number, impactY: number): void {

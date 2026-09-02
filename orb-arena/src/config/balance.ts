@@ -70,6 +70,9 @@ export const KATANA = {
 } as const;
 export const JOUST = { minChargeDelayMs: 1_600, maxChargeDelayMs: 4_200, chargeSpeed: 11 } as const;
 export const SHURIKEN = { fireIntervalMs: 1_450 } as const;
+export const BOTTLE = { fireIntervalMs: 2_250, breakDistance: 235 } as const;
+export const SLIME = { radius: 56, lifetimeMs: 7_000, tickMs: 500, growthIntervalMs: 1_000, baseDps: 1, dpsGrowth: 0.2 } as const;
+export const HAMMER = { spinAcceleration: 0.85 } as const;
 
 export function fireballExplosionRadius(size: number): number {
   return FIREBALL.baseExplosionRadius + Math.max(0, size - 1) * FIREBALL.explosionRadiusGrowth;
@@ -144,6 +147,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'scepter', name: 'Cetro', glyph: '♜', color: 0xffd36b,
     ability: 'Cada golpe daña y cura; la ganancia aumenta +0,5', damage: 1, range: 58, angularSpeed: 3.1, initialHealthGain: 1,
   },
+  bottle: {
+    type: 'bottle', name: 'Frasco', glyph: '⚗', color: 0x68e072,
+    ability: 'Lanza frascos que dejan baba con DPS creciente', damage: 0, range: 52, angularSpeed: 3.15,
+  },
+  hammer: {
+    type: 'hammer', name: 'Martillo', glyph: '┫', color: 0x7fc8ff,
+    ability: 'Daño igual al giro actual; el máximo aumenta +1 por golpe', damage: 1, range: 62, angularSpeed: 1, initialMaxAngularSpeed: 3,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -164,6 +175,8 @@ export const SEASON_TWO_FIGHTERS: FighterSelection[] = [
   { name: 'SHURI', weapon: 'shuriken', color: 0x91a7ff, colorCss: '#91a7ff', season: 2 },
   { name: 'TOME', weapon: 'grimoire', color: 0xc58cff, colorCss: '#c58cff', season: 2 },
   { name: 'SCEP', weapon: 'scepter', color: 0xffd36b, colorCss: '#ffd36b', season: 2 },
+  { name: 'VIAL', weapon: 'bottle', color: 0x68e072, colorCss: '#68e072', season: 2 },
+  { name: 'MAUL', weapon: 'hammer', color: 0x7fc8ff, colorCss: '#7fc8ff', season: 2 },
 ];
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS];

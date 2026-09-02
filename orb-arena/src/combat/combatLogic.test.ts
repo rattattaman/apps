@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { burstShotDelays, ContactCooldowns, copyWeaponProgress, progressAfterHit, type WeaponProgress } from './combatLogic';
+import { advanceHammerSpin, burstShotDelays, ContactCooldowns, copyWeaponProgress, growSlimeDps, progressAfterHit, type WeaponProgress } from './combatLogic';
 
 const base: WeaponProgress = {
   damage: 8, range: 60, angularSpeed: 2, burstSize: 1, explosionSize: 1, shieldSize: 1, maxSpeed: 3, cutCount: 1,
@@ -18,6 +18,7 @@ describe('progresión de armas', () => {
     expect(progressAfterHit('wrench', base)).toEqual(base);
     expect(progressAfterHit('katana', base)).toMatchObject({ cutCount: 2 });
     expect(progressAfterHit('joust', { ...base, damage: 1, chargeDamage: 1 })).toMatchObject({ damage: 1, chargeDamage: 3 });
+    expect(progressAfterHit('hammer', { ...base, angularSpeed: 1, maxAngularSpeed: 3 })).toMatchObject({ angularSpeed: 1, maxAngularSpeed: 4 });
   });
 
   it('copia toda la progresión jugable sin compartir estado mutable', () => {
@@ -41,5 +42,17 @@ describe('recarga por atacante y objetivo', () => {
 describe('ráfaga escalonada del arco', () => {
   it('programa cada flecha en un instante distinto', () => {
     expect(burstShotDelays(4, 80)).toEqual([0, 80, 160, 240]);
+  });
+});
+
+describe('mecánicas de Frasco y Martillo', () => {
+  it('acelera el martillo hasta su máximo sin sobrepasarlo', () => {
+    expect(advanceHammerSpin(1, 3, 1, 0.5)).toBe(1.5);
+    expect(advanceHammerSpin(2.8, 3, 1, 1)).toBe(3);
+  });
+
+  it('solo aumenta el DPS de la baba cuando hay un enemigo dentro', () => {
+    expect(growSlimeDps(1, false)).toBe(1);
+    expect(growSlimeDps(1, true)).toBe(1.2);
   });
 });

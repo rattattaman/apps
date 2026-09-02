@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { COLLISION, type Combatant } from '../combat/Combatant';
-import { FIREBALL, PROJECTILES } from '../config/balance';
+import { BOTTLE, FIREBALL, PROJECTILES } from '../config/balance';
 
-export type ProjectileKind = 'arrow' | 'fireball' | 'bolt' | 'shuriken';
+export type ProjectileKind = 'arrow' | 'fireball' | 'bolt' | 'shuriken' | 'bottle';
 
 export class Projectile {
   readonly id: string;
@@ -11,6 +11,9 @@ export class Projectile {
   bounces: number;
   alive = true;
   lastDeflectedAt = -Infinity;
+  private travelledDistance = 0;
+  private lastX: number;
+  private lastY: number;
 
   constructor(
     scene: Phaser.Scene,
@@ -29,26 +32,35 @@ export class Projectile {
     this.sprite = scene.matter.add.image(x, y, kind, undefined, {
       shape: kind === 'fireball'
         ? { type: 'circle', radius: FIREBALL.radius }
-        : { type: 'rectangle', width: kind === 'shuriken' ? 18 : 30, height: kind === 'shuriken' ? 18 : 7 },
+        : kind === 'bottle'
+          ? { type: 'circle', radius: 8 }
+          : { type: 'rectangle', width: kind === 'shuriken' ? 18 : 30, height: kind === 'shuriken' ? 18 : 7 },
       isSensor: true,
       frictionAir: 0,
     });
     this.sprite.setCollisionCategory(COLLISION.projectile).setCollidesWith(0).setRotation(angle);
     this.bounces = 0;
+    this.lastX = x;
+    this.lastY = y;
     const speed = kind === 'fireball' ? FIREBALL.speed : PROJECTILES.speed;
     this.sprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
   }
 
   get x(): number { return this.sprite.x; }
   get y(): number { return this.sprite.y; }
-  get hitRadius(): number { return this.kind === 'fireball' ? FIREBALL.radius : PROJECTILES.radius; }
+  get hitRadius(): number { return this.kind === 'fireball' ? FIREBALL.radius : this.kind === 'bottle' ? 8 : PROJECTILES.radius; }
 
   update(now: number): void {
     if (!this.alive) return;
+    this.travelledDistance += Phaser.Math.Distance.Between(this.lastX, this.lastY, this.x, this.y);
+    this.lastX = this.x;
+    this.lastY = this.y;
     const body = this.sprite.body as MatterJS.BodyType;
     if (this.kind !== 'fireball') this.sprite.setRotation(Math.atan2(body.velocity.y, body.velocity.x));
     if (now - this.bornAt > PROJECTILES.lifetimeMs) this.destroy();
   }
+
+  shouldBreakBottle(): boolean { return this.kind === 'bottle' && this.travelledDistance >= BOTTLE.breakDistance; }
 
   deflect(normalAngle: number, now: number): void {
     const body = this.sprite.body as MatterJS.BodyType;
