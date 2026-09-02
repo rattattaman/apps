@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Combatant } from '../combat/Combatant';
 import { ARENA, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
 import type { Segment } from '../utils/geometry';
-import { copyNormalCombatProgress, progressAfterHit, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
+import { copyWeaponProgress, progressAfterHit, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
 
 export class OrbitWeapon {
   angle: number;
@@ -42,8 +42,8 @@ export class OrbitWeapon {
   get shurikenBounces(): number { return this.progress.shurikenBounces ?? 0; }
   get healthGain(): number { return this.progress.healthGain ?? 1; }
 
-  copyNormalCombatStatsFrom(other: OrbitWeapon): void {
-    this.progress = copyNormalCombatProgress(this.progress, other.progress);
+  copyGameplayProgressFrom(other: OrbitWeapon): void {
+    this.progress = copyWeaponProgress(other.progress);
     this.rangeScale = other.rangeScale;
   }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
@@ -72,6 +72,10 @@ export class OrbitWeapon {
 
   segment(): Segment {
     if (this.owner.selection.weapon === 'shield') return this.shieldSegment();
+    return this.radialSegment();
+  }
+
+  private radialSegment(): Segment {
     const startDistance = this.owner.radius - 4;
     return {
       start: {
@@ -90,7 +94,7 @@ export class OrbitWeapon {
   }
 
   private draw(): void {
-    const type = this.owner.selection.weapon;
+    const type = this.owner.visualWeaponType;
     const definition = WEAPONS[type];
     if (type === 'unarmed') {
       this.graphics.clear();
@@ -107,7 +111,7 @@ export class OrbitWeapon {
         .beginPath().moveTo(4, -3).lineTo(this.shieldWidth - 4, -3).strokePath();
       return;
     }
-    const segment = this.segment();
+    const segment = this.radialSegment();
     const length = Phaser.Math.Distance.Between(segment.start.x, segment.start.y, segment.end.x, segment.end.y);
     this.graphics.clear().setPosition(segment.start.x, segment.start.y).setRotation(this.angle);
     if (type === 'bow') {
@@ -169,7 +173,7 @@ export class OrbitWeapon {
     }
     if (type === 'grimoire') {
       const bookX = length - 22;
-      const visualColor = this.owner.selection.color;
+      const visualColor = this.owner.visualColor;
       this.graphics.lineStyle(4, visualColor, 1).beginPath().moveTo(0, 0).lineTo(bookX, 0).strokePath()
         .fillStyle(0x392653, 1).fillRoundedRect(bookX, -15, 30, 30, 4)
         .lineStyle(3, visualColor, 1).strokeRoundedRect(bookX, -15, 30, 30, 4)

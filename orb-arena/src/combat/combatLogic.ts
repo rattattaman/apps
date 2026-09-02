@@ -17,14 +17,8 @@ export function burstShotDelays(count: number, spacingMs: number): number[] {
   return Array.from({ length: Math.max(0, count) }, (_, index) => index * spacingMs);
 }
 
-export function copyNormalCombatProgress(base: WeaponProgress, source: WeaponProgress): WeaponProgress {
-  return {
-    ...base,
-    damage: source.damage,
-    range: source.range,
-    angularSpeed: source.angularSpeed,
-    maxSpeed: source.maxSpeed,
-  };
+export function copyWeaponProgress(source: WeaponProgress): WeaponProgress {
+  return { ...source };
 }
 
 export function progressAfterHit(type: WeaponType, current: WeaponProgress): WeaponProgress {

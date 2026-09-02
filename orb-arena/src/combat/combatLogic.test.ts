@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { burstShotDelays, ContactCooldowns, copyNormalCombatProgress, progressAfterHit, type WeaponProgress } from './combatLogic';
+import { burstShotDelays, ContactCooldowns, copyWeaponProgress, progressAfterHit, type WeaponProgress } from './combatLogic';
 
 const base: WeaponProgress = {
   damage: 8, range: 60, angularSpeed: 2, burstSize: 1, explosionSize: 1, shieldSize: 1, maxSpeed: 3, cutCount: 1,
@@ -19,12 +19,11 @@ describe('progresión de armas', () => {
     expect(progressAfterHit('katana', base)).toMatchObject({ cutCount: 2 });
   });
 
-  it('copia estadísticas normales sin arrastrar habilidades especiales ni compartir estado', () => {
-    const cloneBase = { ...base, damage: 1, range: 20, angularSpeed: 1, maxSpeed: 4, burstSize: 1, explosionSize: 0, cutCount: 0 };
-    const copied = copyNormalCombatProgress(cloneBase, { ...base, damage: 12, range: 90, angularSpeed: 5, maxSpeed: 7, burstSize: 9, explosionSize: 8, cutCount: 6 });
-    expect(copied).toMatchObject({ damage: 12, range: 90, angularSpeed: 5, maxSpeed: 7 });
-    expect(copied).toMatchObject({ burstSize: 1, explosionSize: 0, cutCount: 0 });
-    expect(copied).not.toBe(cloneBase);
+  it('copia toda la progresión jugable sin compartir estado mutable', () => {
+    const source = { ...base, damage: 12, range: 90, angularSpeed: 5, maxSpeed: 7, burstSize: 12, explosionSize: 8, cutCount: 6, shurikenBounces: 4.2, healthGain: 3.5 };
+    const copied = copyWeaponProgress(source);
+    expect(copied).toEqual(source);
+    expect(copied).not.toBe(source);
   });
 });
 

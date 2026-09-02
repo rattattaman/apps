@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns } from '../combat/combatLogic';
-import { canCreateClone, cloneHealthForNumber } from '../combat/cloneLogic';
+import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from '../combat/cloneLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
 import { ARENA, arenaSizeForFighterCount, CHAOS, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
@@ -321,7 +321,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       angle: this.random.between(0, Math.PI * 2),
       nextShotAt: this.time.now + this.random.between(450, TURRET.fireIntervalMs),
     });
-    this.spark(x, y, owner.selection.color, 10);
+    this.spark(x, y, owner.visualColor, 10);
   }
 
   private updateTurrets(now: number, deltaSeconds: number): void {
@@ -469,7 +469,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         const midpoint = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
         this.spark(midpoint.x, midpoint.y, 0xeef6ff, 5);
         this.audio.parry();
-        gameEvents.emit('battle:event', { kind: 'parry', title: 'PARADA', detail: `${first.selection.name} ↔ ${second.selection.name}` });
+        gameEvents.emit('battle:event', { kind: 'parry', title: 'PARADA', detail: `${first.displayName} ↔ ${second.displayName}` });
       }
     }
   }
@@ -595,10 +595,10 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const progression = attacker.weapon.registerHit();
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
     this.addVelocity(target, angle, 0.7);
-    this.spark(impactX, impactY, attacker.selection.color, 9);
+    this.spark(impactX, impactY, attacker.visualColor, 9);
     this.showWeaponProgress(attacker, progression);
     gameEvents.emit('battle:event', {
-      kind: 'hit', title: `${attacker.selection.name} DESENVAINA`,
+      kind: 'hit', title: `${attacker.displayName} DESENVAINA`,
       detail: `${cuts} ${cuts === 1 ? 'corte' : 'cortes'} de ${KATANA.cutDamage} de daño`,
     });
     for (let index = 0; index < cuts; index += 1) {
@@ -635,7 +635,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.spark(impactX, impactY, 0x92ddff, 7);
     this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#b9ecff');
     gameEvents.emit('battle:event', {
-      kind: 'hit', title: `TORRETA DE ${owner.selection.name}`,
+      kind: 'hit', title: `TORRETA DE ${owner.displayName}`,
       detail: `${Math.round(applied)} de daño`,
     });
     this.emitHud(true);
@@ -644,7 +644,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private showWeaponProgress(fighter: Combatant, progression: string): void {
     if (!fighter.alive) return;
-    this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.selection.colorCss, true);
+    this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.visualColorCss, true);
     this.emitHud(true);
   }
 
@@ -660,11 +660,11 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (canCreateClone(attacker)) this.spawnClone(attacker, target);
     if (attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain, true);
     this.audio.impact(Math.min(3, damage / 7));
-    this.spark(impactX, impactY, attacker.selection.color, 9);
+    this.spark(impactX, impactY, attacker.visualColor, 9);
     this.floatText(target.x, target.y - 28, `−${Math.round(applied)}`, '#ffffff');
-    this.floatText(attacker.x, attacker.y - 40, `↑ ${progression}`, attacker.selection.colorCss, true);
+    this.floatText(attacker.x, attacker.y - 40, `↑ ${progression}`, attacker.visualColorCss, true);
     gameEvents.emit('battle:event', {
-      kind: 'hit', title: `${attacker.selection.name} IMPACTA`,
+      kind: 'hit', title: `${attacker.displayName} IMPACTA`,
       detail: `${Math.round(applied)} de daño · ${progression}`,
     });
     this.emitHud(true);
@@ -678,18 +678,23 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const cloneHealth = cloneHealthForNumber(cloneNumber);
     const cloneRadius = 18;
     const spawn = this.findCloneSpawnPosition(source, cloneRadius, cloneNumber);
-    const cloneSelection = { ...source.selection, name: `${source.selection.name}·${cloneNumber}` };
+    const { gameplaySelection: cloneSelection, visualSelection: cloneVisualSelection } = createCloneIdentity(
+      target.selection, source.visualSelection, cloneNumber,
+    );
     const clone = new Combatant(
       this, cloneSelection, this.nextEntitySequence++, spawn.x, spawn.y, cloneHealth, spawn.angle,
-      { radius: cloneRadius, isClone: true, canClone: false, cloneOwnerId: source.id, generation: 1 },
+      {
+        radius: cloneRadius, isClone: true, canClone: false, cloneOwnerId: source.id, generation: 1,
+        visualSelection: cloneVisualSelection, visualWeaponType: 'grimoire',
+      },
     );
-    clone.weapon.copyNormalCombatStatsFrom(target.weapon);
+    clone.weapon.copyGameplayProgressFrom(target.weapon);
     const targetBody = target.orb.body as MatterJS.BodyType;
     const inheritedSpeed = Phaser.Math.Clamp(Math.hypot(targetBody.velocity.x, targetBody.velocity.y), ARENA.minSpeed, ARENA.maxSpeed);
     clone.orb.setVelocity(Math.cos(spawn.angle) * inheritedSpeed, Math.sin(spawn.angle) * inheritedSpeed);
     this.fighters.push(clone);
-    this.spark(clone.x, clone.y, source.selection.color, 12);
-    gameEvents.emit('battle:event', { kind: 'hit', title: `${source.selection.name} CREA CLON`, detail: `${cloneHealth} de vida · estadísticas de ${target.selection.name}` });
+    this.spark(clone.x, clone.y, source.visualColor, 12);
+    gameEvents.emit('battle:event', { kind: 'hit', title: `${source.displayName} CREA CLON`, detail: `${cloneHealth} de vida · habilidades de ${target.displayName}` });
     this.emitHud(true);
   }
 
@@ -724,13 +729,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
     const progression = defender.weapon.registerHit();
     this.audio.parry();
-    this.spark(impactX, impactY, defender.selection.color, 12);
+    this.spark(impactX, impactY, defender.visualColor, 12);
     if (attacker.alive) {
-      this.floatText(attacker.x, attacker.y - 28, `↩ −${Math.round(applied)}`, defender.selection.colorCss);
+      this.floatText(attacker.x, attacker.y - 28, `↩ −${Math.round(applied)}`, defender.visualColorCss);
     }
-    this.floatText(defender.x, defender.y - 40, `↑ ${progression}`, defender.selection.colorCss, true);
+    this.floatText(defender.x, defender.y - 40, `↑ ${progression}`, defender.visualColorCss, true);
     gameEvents.emit('battle:event', {
-      kind: 'parry', title: `${defender.selection.name} REFLEJA`,
+      kind: 'parry', title: `${defender.displayName} REFLEJA`,
       detail: attacker.alive
         ? `${Math.round(applied)} de daño devuelto · ${progression}`
         : `Proyectil bloqueado · ${progression}`,
@@ -762,9 +767,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       source: attacker,
       nextTickAt: current?.nextTickAt ?? this.time.now + 1_000,
     });
-    this.floatText(target.x, target.y - 42, `☠ VENENO ${stacks}`, attacker.selection.colorCss, true);
+    this.floatText(target.x, target.y - 42, `☠ VENENO ${stacks}`, attacker.visualColorCss, true);
     gameEvents.emit('battle:event', {
-      kind: 'hit', title: `${attacker.selection.name} ENVENENA`, detail: `${target.selection.name} acumula ${stacks}`,
+      kind: 'hit', title: `${attacker.displayName} ENVENENA`, detail: `${target.displayName} acumula ${stacks}`,
     });
     this.emitHud(true);
   }
@@ -784,7 +789,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       this.spark(target.x, target.y, 0x91e34f, 6);
       this.floatText(target.x, target.y - 30, `☠ −${Math.round(applied)}`, '#b8ff7c');
       gameEvents.emit('battle:event', {
-        kind: 'hit', title: 'VENENO', detail: `${target.selection.name} pierde ${Math.round(applied)} de vida`,
+        kind: 'hit', title: 'VENENO', detail: `${target.displayName} pierde ${Math.round(applied)} de vida`,
       });
       this.emitHud(true);
       if (target.health <= 0) {
@@ -813,8 +818,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (target.isClone) this.fighters = this.fighters.filter((fighter) => fighter !== target);
     this.audio.elimination();
     this.cameras.main.shake(lastStanding ? 420 : 180, lastStanding ? 0.012 : 0.006);
-    this.spark(x, y, target.selection.color, lastStanding ? 28 : 16);
-    gameEvents.emit('battle:event', { kind: 'elimination', title: `${target.selection.name} ELIMINADO`, detail: `${attacker.selection.name} da el golpe final` });
+    this.spark(x, y, target.visualColor, lastStanding ? 28 : 16);
+    gameEvents.emit('battle:event', { kind: 'elimination', title: `${target.displayName} ELIMINADO`, detail: `${attacker.displayName} da el golpe final` });
     this.emitHud(true);
     if (!lastStanding) return;
     const winner = this.aliveFighters()[0] as Combatant;

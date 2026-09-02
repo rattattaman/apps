@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { ARENA, UNARMED, WEAPONS } from '../config/balance';
-import type { FighterSelection } from '../types';
+import type { FighterSelection, WeaponType } from '../types';
 import type { FighterHudState } from '../events';
 import { OrbitWeapon } from '../weapons/OrbitWeapon';
 
@@ -17,6 +17,8 @@ export interface CombatantOptions {
   canClone?: boolean;
   cloneOwnerId?: string;
   generation?: number;
+  visualSelection?: FighterSelection;
+  visualWeaponType?: WeaponType;
 }
 
 export class Combatant {
@@ -30,6 +32,8 @@ export class Combatant {
   readonly canClone: boolean;
   readonly cloneOwnerId?: string;
   readonly generation: number;
+  readonly visualSelection: FighterSelection;
+  readonly visualWeaponType: WeaponType;
   health: number;
   poisonStacks = 0;
   alive = true;
@@ -55,20 +59,22 @@ export class Combatant {
     this.canClone = options.canClone ?? (selection.weapon === 'grimoire' && !this.isClone);
     this.cloneOwnerId = options.cloneOwnerId;
     this.generation = options.generation ?? 0;
+    this.visualSelection = options.visualSelection ?? selection;
+    this.visualWeaponType = options.visualWeaponType ?? selection.weapon;
     this.orb = scene.matter.add.image(x, y, 'orb', undefined, {
       shape: { type: 'circle', radius: this.radius },
       restitution: 1,
       friction: 0,
       frictionAir: 0,
     });
-    this.orb.setTint(selection.color).setBounce(1).setFriction(0, 0, 0).setFixedRotation();
+    this.orb.setTint(this.visualSelection.color).setBounce(1).setFriction(0, 0, 0).setFixedRotation();
     this.orb.setScale(this.radius / ARENA.orbRadius);
     this.orb.setCollisionCategory(COLLISION.fighter)
       .setCollidesWith([COLLISION.fighter, COLLISION.wall, COLLISION.turret]);
     const body = this.orb.body as MatterJS.BodyType;
     body.label = this.id;
     this.ring = scene.add.graphics().setDepth(3);
-    this.label = scene.add.text(x, y, selection.name.slice(0, 2), {
+    this.label = scene.add.text(x, y, this.visualSelection.name.slice(0, 2), {
       fontFamily: 'ui-monospace, monospace', fontSize: '12px', fontStyle: 'bold', color: '#10131b',
     }).setOrigin(0.5).setDepth(4);
     this.weapon = new OrbitWeapon(scene, this, initialAngle);
@@ -76,6 +82,9 @@ export class Combatant {
 
   get x(): number { return this.orb.x; }
   get y(): number { return this.orb.y; }
+  get displayName(): string { return this.visualSelection.name; }
+  get visualColor(): number { return this.visualSelection.color; }
+  get visualColorCss(): string { return this.visualSelection.colorCss; }
 
   update(deltaSeconds: number, spinDirection: number, globalSpeed: number): void {
     if (!this.alive) return;
@@ -86,7 +95,7 @@ export class Combatant {
     this.keepMoving(globalSpeed);
     this.ring.clear()
       .lineStyle(2, 0xffffff, 0.25).strokeCircle(this.x, this.y, Math.max(4, this.radius - 4))
-      .lineStyle(2, this.selection.color, 0.55).strokeCircle(this.x, this.y, this.radius + 4);
+      .lineStyle(2, this.visualColor, 0.55).strokeCircle(this.x, this.y, this.radius + 4);
     this.label.setPosition(this.x, this.y);
   }
 
@@ -96,7 +105,7 @@ export class Combatant {
     this.health = Math.max(0, this.health - amount);
     this.orb.setTint(0xffffff);
     this.scene.time.delayedCall(65, () => {
-      if (this.alive) this.orb.setTint(this.selection.color);
+      if (this.alive) this.orb.setTint(this.visualColor);
     });
     return applied;
   }
@@ -127,10 +136,10 @@ export class Combatant {
     const definition = WEAPONS[this.selection.weapon];
     return {
       id: this.id,
-      name: this.selection.name,
-      weaponName: definition.name,
+      name: this.displayName,
+      weaponName: this.isClone ? `Clon · ${definition.name}` : definition.name,
       ability: definition.ability,
-      colorCss: this.selection.colorCss,
+      colorCss: this.visualColorCss,
       health: this.health,
       maxHealth: this.maxHealth,
       alive: this.alive,
