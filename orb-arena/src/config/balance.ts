@@ -173,11 +173,11 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
   giant: {
     type: 'giant', name: 'Grande', glyph: '⬤', color: 0xe59cff,
-    ability: 'Sin arma; cada rebote contra una pared o torreta aumenta su tamaño', damage: 0, range: 0, angularSpeed: 0, initialSizeLevel: 0,
+    ability: 'Sin arma; hace 1 de daño corporal y cada rebote aumenta su tamaño', damage: 1, range: 0, angularSpeed: 0, initialSizeLevel: 0,
   },
   laser: {
     type: 'laser', name: 'Láser', glyph: '━', color: 0xff5a70,
-    ability: 'Su tiempo de recarga disminuye cada vez que el rayo golpea', damage: 1, range: 180, angularSpeed: 2.05, initialLaserCooldownMs: 900,
+    ability: 'Rayo de alcance infinito; su recarga disminuye cada vez que golpea', damage: 1, range: 0, angularSpeed: 2.05, initialLaserCooldownMs: 900,
   },
 };
 

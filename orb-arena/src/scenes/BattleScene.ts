@@ -995,6 +995,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.applyUnarmedImpact(second, first, pair.bodyB);
         this.applyCrusherImpact(first, second);
         this.applyCrusherImpact(second, first);
+        this.applyGiantImpact(first, second);
+        this.applyGiantImpact(second, first);
       }
       if (!this.bounceHealing) continue;
       for (const body of [pair.bodyA, pair.bodyB]) {
@@ -1045,6 +1047,12 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (attacker.selection.weapon !== 'crusher' || !attacker.alive || !target.alive) return;
     if (!this.cooldowns.canTrigger(`crusher-${attacker.id}`, target.id, this.time.now, CROSSOVER.bodyHitCooldownMs)) return;
     this.applyDamage(attacker, target, attacker.weapon.damage, 1.45, target.x, target.y, false);
+  }
+
+  private applyGiantImpact(attacker: Combatant, target: Combatant): void {
+    if (attacker.selection.weapon !== 'giant' || !attacker.alive || !target.alive) return;
+    if (!this.cooldowns.canTrigger(`giant-${attacker.id}`, target.id, this.time.now, CROSSOVER.bodyHitCooldownMs)) return;
+    this.applyDamage(attacker, target, attacker.weapon.damage, 1.15, target.x, target.y, false);
   }
 
   private resolveWallContacts(): void {

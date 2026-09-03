@@ -51,7 +51,9 @@ describe('arenaSizeForFighterCount', () => {
     expect(WEAPONS.crusher.damage).toBe(1);
     expect(WEAPONS.orbit.initialSatelliteCount).toBe(0);
     expect(WEAPONS.giant.initialSizeLevel).toBe(0);
+    expect(WEAPONS.giant.damage).toBe(1);
     expect(WEAPONS.laser.initialLaserCooldownMs).toBe(900);
+    expect(WEAPONS.laser.range).toBe(0);
   });
 });
 

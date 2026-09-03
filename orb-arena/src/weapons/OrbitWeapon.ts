@@ -14,7 +14,7 @@ export class OrbitWeapon {
   rangeScale = 1;
 
   constructor(
-    scene: Phaser.Scene,
+    private readonly scene: Phaser.Scene,
     readonly owner: Combatant,
     initialAngle: number,
   ) {
@@ -37,9 +37,9 @@ export class OrbitWeapon {
       sizeLevel: definition.initialSizeLevel ?? 0,
       laserCooldownMs: definition.initialLaserCooldownMs ?? 900,
     };
-    this.graphics = scene.add.graphics().setDepth(5);
-    this.satelliteGraphics = scene.add.graphics().setDepth(6);
-    this.laserGraphics = scene.add.graphics().setDepth(5);
+    this.graphics = this.scene.add.graphics().setDepth(5);
+    this.satelliteGraphics = this.scene.add.graphics().setDepth(6);
+    this.laserGraphics = this.scene.add.graphics().setDepth(5);
   }
 
   get damage(): number { return this.progress.damage; }
@@ -286,11 +286,12 @@ export class OrbitWeapon {
   }
 
   private laserSegment(): Segment {
+    const arenaDiagonal = Math.hypot(this.scene.scale.width, this.scene.scale.height);
     return {
       start: { x: this.owner.x, y: this.owner.y },
       end: {
-        x: this.owner.x + Math.cos(this.angle) * this.range,
-        y: this.owner.y + Math.sin(this.angle) * this.range,
+        x: this.owner.x + Math.cos(this.angle) * arenaDiagonal,
+        y: this.owner.y + Math.sin(this.angle) * arenaDiagonal,
       },
     };
   }
