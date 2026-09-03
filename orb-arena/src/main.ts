@@ -156,6 +156,10 @@ function initialHud(config: BattleConfig): FighterHudState[] {
                             ? `TAMAÑO +${WEAPONS.giant.initialSizeLevel ?? 0}`
                             : fighter.weapon === 'laser'
                               ? `RECARGA ${WEAPONS.laser.initialLaserCooldownMs ?? 900} MS`
+                              : fighter.weapon === 'lyna'
+                                ? `ORBITAS ×${WEAPONS.lyna.initialLynaOrbCount ?? 0}`
+                                : fighter.weapon === 'duplicator'
+                                  ? 'COPIAS AUTOMÁTICAS'
                   : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }

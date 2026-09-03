@@ -10,6 +10,9 @@ export class OrbitWeapon {
   private readonly graphics: Phaser.GameObjects.Graphics;
   private readonly satelliteGraphics: Phaser.GameObjects.Graphics;
   private readonly laserGraphics: Phaser.GameObjects.Graphics;
+  private readonly lynaGraphics: Phaser.GameObjects.Graphics;
+  private lynaAngles: number[] = [];
+  private lynaSpeeds: number[] = [];
   private progress: WeaponProgress;
   rangeScale = 1;
 
@@ -36,10 +39,12 @@ export class OrbitWeapon {
       satelliteCount: definition.initialSatelliteCount ?? 0,
       sizeLevel: definition.initialSizeLevel ?? 0,
       laserCooldownMs: definition.initialLaserCooldownMs ?? 900,
+      lynaOrbCount: definition.initialLynaOrbCount ?? 0,
     };
     this.graphics = this.scene.add.graphics().setDepth(5);
     this.satelliteGraphics = this.scene.add.graphics().setDepth(6);
     this.laserGraphics = this.scene.add.graphics().setDepth(5);
+    this.lynaGraphics = this.scene.add.graphics().setDepth(6);
   }
 
   get damage(): number { return this.progress.damage; }
@@ -56,10 +61,13 @@ export class OrbitWeapon {
   get satelliteCount(): number { return this.progress.satelliteCount ?? 0; }
   get sizeLevel(): number { return this.progress.sizeLevel ?? 0; }
   get laserCooldownMs(): number { return this.progress.laserCooldownMs ?? 900; }
+  get lynaOrbCount(): number { return this.progress.lynaOrbCount ?? 0; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
     this.rangeScale = other.rangeScale;
+    this.lynaAngles = [...other.lynaAngles];
+    this.lynaSpeeds = [...other.lynaSpeeds];
   }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
@@ -67,6 +75,10 @@ export class OrbitWeapon {
   update(deltaSeconds: number, spinDirection: number): void {
     if (this.owner.selection.weapon === 'hammer') {
       this.progress.angularSpeed = advanceHammerSpin(this.progress.angularSpeed, this.maxAngularSpeed, HAMMER.spinAcceleration, deltaSeconds);
+    }
+    for (let index = 0; index < this.lynaAngles.length; index += 1) {
+      this.lynaAngles[index] = (this.lynaAngles[index] ?? 0)
+        + (this.lynaSpeeds[index] ?? 0) * spinDirection * deltaSeconds;
     }
     this.angle += this.progress.angularSpeed * this.direction * spinDirection * deltaSeconds;
     this.draw();
@@ -82,6 +94,13 @@ export class OrbitWeapon {
     return this.progressionText;
   }
 
+  registerLynaOrb(angularSpeed: number): string {
+    this.lynaAngles.push(this.angle + this.lynaAngles.length * 2.39996);
+    this.lynaSpeeds.push(angularSpeed);
+    this.progress = progressAfterObstacleBounce('lyna', this.progress);
+    return this.progressionText;
+  }
+
   satellitePositions(): Array<{ x: number; y: number }> {
     const count = this.satelliteCount;
     if (count <= 0) return [];
@@ -90,6 +109,16 @@ export class OrbitWeapon {
       return {
         x: this.owner.x + Math.cos(angle) * CROSSOVER.satelliteOrbitDistance,
         y: this.owner.y + Math.sin(angle) * CROSSOVER.satelliteOrbitDistance,
+      };
+    });
+  }
+
+  lynaOrbPositions(): Array<{ x: number; y: number }> {
+    return this.lynaAngles.map((angle, index) => {
+      const distance = CROSSOVER.lynaBaseOrbitDistance + index * CROSSOVER.lynaOrbitGap;
+      return {
+        x: this.owner.x + Math.cos(angle) * distance,
+        y: this.owner.y + Math.sin(angle) * distance,
       };
     });
   }
@@ -129,14 +158,16 @@ export class OrbitWeapon {
     this.graphics.destroy();
     this.satelliteGraphics.destroy();
     this.laserGraphics.destroy();
+    this.lynaGraphics.destroy();
   }
 
   private draw(): void {
     this.drawSatellites();
     this.drawLaserAbility();
+    this.drawLynaOrbs();
     const type = this.owner.visualWeaponType;
     const definition = WEAPONS[type];
-    if (type === 'unarmed' || type === 'crusher' || type === 'orbit' || type === 'giant' || type === 'laser') {
+    if (type === 'unarmed' || type === 'crusher' || type === 'orbit' || type === 'giant' || type === 'laser' || type === 'lyna' || type === 'duplicator') {
       this.graphics.clear();
       return;
     }
@@ -283,6 +314,19 @@ export class OrbitWeapon {
       .lineStyle(2, 0xffffff, 0.95)
       .beginPath().moveTo(0, 0).lineTo(length, 0).strokePath()
       .fillStyle(0xffffff, 0.95).fillCircle(length, 0, 4);
+  }
+
+  private drawLynaOrbs(): void {
+    this.lynaGraphics.clear();
+    if (this.owner.selection.weapon !== 'lyna') return;
+    for (const position of this.lynaOrbPositions()) {
+      this.lynaGraphics.fillStyle(this.owner.visualColor, 0.18)
+        .fillCircle(position.x, position.y, CROSSOVER.lynaOrbRadius + 4)
+        .fillStyle(0xeafff8, 1)
+        .fillCircle(position.x, position.y, CROSSOVER.lynaOrbRadius)
+        .lineStyle(2, this.owner.visualColor, 0.95)
+        .strokeCircle(position.x, position.y, CROSSOVER.lynaOrbRadius);
+    }
   }
 
   private laserSegment(): Segment {

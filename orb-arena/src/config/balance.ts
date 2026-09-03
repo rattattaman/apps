@@ -80,6 +80,12 @@ export const CROSSOVER = {
   giantRadiusGrowth: 2,
   laserCooldownReductionMs: 50,
   laserMinimumCooldownMs: 150,
+  lynaOrbRadius: 7,
+  lynaBaseOrbitDistance: 52,
+  lynaOrbitGap: 19,
+  lynaMinimumAngularSpeed: 1.2,
+  lynaMaximumAngularSpeed: 4.4,
+  duplicateIntervalMs: 5_000,
 } as const;
 
 export function fireballExplosionRadius(size: number): number {
@@ -179,6 +185,14 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'laser', name: 'Láser', glyph: '━', color: 0xff5a70,
     ability: 'Rayo de alcance infinito; su recarga disminuye cada vez que golpea', damage: 1, range: 0, angularSpeed: 2.05, initialLaserCooldownMs: 900,
   },
+  lyna: {
+    type: 'lyna', name: 'Lyna', glyph: '◎', color: 0x78f0c4,
+    ability: 'Cada rebote añade un orbe más lejano con velocidad aleatoria', damage: 0, range: 0, angularSpeed: 0, initialLynaOrbCount: 0,
+  },
+  duplicator: {
+    type: 'duplicator', name: 'Duplicador', glyph: '◉', color: 0xffd45a,
+    ability: 'Crea copias periódicas; si muere el original, mueren todas', damage: 0, range: 0, angularSpeed: 0,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -208,6 +222,8 @@ export const CROSSOVER_FIGHTERS: FighterSelection[] = [
   { name: 'ORBITA', weapon: 'orbit', color: 0x59e0ff, colorCss: '#59e0ff', season: 'Crossover' },
   { name: 'GRANDE', weapon: 'giant', color: 0xe59cff, colorCss: '#e59cff', season: 'Crossover' },
   { name: 'LASER', weapon: 'laser', color: 0xff5a70, colorCss: '#ff5a70', season: 'Crossover' },
+  { name: 'LYNA', weapon: 'lyna', color: 0x78f0c4, colorCss: '#78f0c4', season: 'Crossover' },
+  { name: 'DUPLI', weapon: 'duplicator', color: 0xffd45a, colorCss: '#ffd45a', season: 'Crossover' },
 ];
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS, ...CROSSOVER_FIGHTERS];

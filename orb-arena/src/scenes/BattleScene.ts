@@ -3,6 +3,7 @@ import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
 import { burstShotDelays, ContactCooldowns, growSlimeDps } from '../combat/combatLogic';
 import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from '../combat/cloneLogic';
+import { linkedDuplicates, livingContenderIds } from '../combat/duplicateLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
 import { ARENA, arenaSizeForFighterCount, BOTTLE, CHAOS, CROSSOVER, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
@@ -73,12 +74,14 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private nextShrinkAt = ARENA.battleLimitMs + 8_000;
   private readonly nextShotAt = new Map<string, number>();
   private readonly nextLaserHitAt = new Map<string, number>();
+  private readonly nextDuplicateAt = new Map<string, number>();
   private readonly joustNextCharge = new Map<string, number>();
   private readonly joustCharging = new Set<string>();
   private readonly joustChargeAngles = new Map<string, number>();
   private readonly lastBounceHealAt = new Map<string, number>();
   private readonly poisonEffects = new Map<string, PoisonEffect>();
   private readonly cloneCountsByOwner = new Map<string, number>();
+  private readonly duplicateCountsByOwner = new Map<string, number>();
   private nextEntitySequence = 0;
   private arenaBorder!: Phaser.GameObjects.Graphics;
 
@@ -114,7 +117,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
     this.updateSatelliteCombat(time);
+    this.updateLynaCombat(time);
     this.updateLaserCombat(time);
+    this.updateDuplicators(time);
     this.updateJoust(time);
     this.updateParries(time);
     this.updateRangedWeapons(time);
@@ -228,12 +233,14 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.nextShrinkAt = ARENA.battleLimitMs + 8_000;
     this.nextShotAt.clear();
     this.nextLaserHitAt.clear();
+    this.nextDuplicateAt.clear();
     this.joustNextCharge.clear();
     this.joustCharging.clear();
     this.joustChargeAngles.clear();
     this.lastBounceHealAt.clear();
     this.poisonEffects.clear();
     this.cloneCountsByOwner.clear();
+    this.duplicateCountsByOwner.clear();
     this.matter.world.setGravity(0, 0);
     this.matter.world.engine.timing.timeScale = this.simulationSpeed;
   }
@@ -311,6 +318,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       fighter.orb.setVelocity(Math.cos(heading) * speed, Math.sin(heading) * speed);
       this.nextShotAt.set(fighter.id, this.time.now + this.random.between(700, PROJECTILES.fireIntervalMs));
       if (selection.weapon === 'joust') this.scheduleNextJoust(fighter, this.time.now);
+      if (fighter.canDuplicate) this.scheduleNextDuplicate(fighter, this.time.now);
       return fighter;
     });
   }
@@ -437,7 +445,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const alive = this.aliveFighters();
     for (const attacker of alive) {
       if (!attacker.alive) continue;
-      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit', 'giant', 'laser'].includes(attacker.selection.weapon)) continue;
+      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of alive) {
         if (target === attacker || !target.alive) continue;
@@ -488,6 +496,24 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
   }
 
+  private updateLynaCombat(now: number): void {
+    const alive = this.aliveFighters();
+    for (const attacker of alive) {
+      if (attacker.selection.weapon !== 'lyna') continue;
+      const orbiters = attacker.weapon.lynaOrbPositions();
+      for (let index = 0; index < orbiters.length; index += 1) {
+        const orbiter = orbiters[index] as { x: number; y: number };
+        for (const target of alive) {
+          if (target === attacker || !target.alive) continue;
+          const hitRadius = target.radius + CROSSOVER.lynaOrbRadius;
+          if (Phaser.Math.Distance.Squared(orbiter.x, orbiter.y, target.x, target.y) > hitRadius ** 2) continue;
+          if (!this.cooldowns.canTrigger(`${attacker.id}-lyna-${index}`, target.id, now, ARENA.weaponHitCooldownMs)) continue;
+          this.applyDamage(attacker, target, 1, 0.65, orbiter.x, orbiter.y, false);
+        }
+      }
+    }
+  }
+
   private updateLaserCombat(now: number): void {
     const alive = this.aliveFighters();
     for (const attacker of alive) {
@@ -503,6 +529,60 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       this.applyDamage(attacker, target, attacker.weapon.damage, 0.35, target.x, target.y);
       if (target.health < previousHealth) this.nextLaserHitAt.set(attacker.id, now + attacker.weapon.laserCooldownMs);
     }
+  }
+
+  private updateDuplicators(now: number): void {
+    for (const source of this.aliveFighters()) {
+      if (!source.canDuplicate) continue;
+      const nextDuplicate = this.nextDuplicateAt.get(source.id);
+      if (nextDuplicate === undefined) {
+        this.scheduleNextDuplicate(source, now);
+        continue;
+      }
+      if (now < nextDuplicate) continue;
+      this.spawnDuplicate(source);
+      this.scheduleNextDuplicate(source, now);
+    }
+  }
+
+  private scheduleNextDuplicate(source: Combatant, now: number): void {
+    this.nextDuplicateAt.set(source.id, now + CROSSOVER.duplicateIntervalMs);
+  }
+
+  private spawnDuplicate(source: Combatant): void {
+    if (!source.alive || !source.canDuplicate) return;
+    const duplicateNumber = (this.duplicateCountsByOwner.get(source.id) ?? 0) + 1;
+    this.duplicateCountsByOwner.set(source.id, duplicateNumber);
+    const spawn = this.findCloneSpawnPosition(source, source.radius, duplicateNumber);
+    const duplicate = new Combatant(
+      this,
+      source.selection,
+      this.nextEntitySequence++,
+      spawn.x,
+      spawn.y,
+      Math.max(1, source.health),
+      spawn.angle,
+      {
+        radius: source.radius,
+        isClone: true,
+        canClone: false,
+        canDuplicate: false,
+        duplicateOwnerId: source.id,
+        generation: source.generation + 1,
+        visualSelection: source.visualSelection,
+        visualWeaponType: source.visualWeaponType,
+      },
+    );
+    duplicate.weapon.copyGameplayProgressFrom(source.weapon);
+    const sourceBody = source.orb.body as MatterJS.BodyType;
+    const speed = Phaser.Math.Clamp(Math.hypot(sourceBody.velocity.x, sourceBody.velocity.y), ARENA.minSpeed, ARENA.maxSpeed);
+    duplicate.orb.setVelocity(Math.cos(spawn.angle) * speed, Math.sin(spawn.angle) * speed);
+    this.fighters.push(duplicate);
+    this.spark(duplicate.x, duplicate.y, source.visualColor, 9);
+    gameEvents.emit('battle:event', {
+      kind: 'hit', title: `${source.displayName} SE DUPLICA`, detail: `Copia ${duplicateNumber} vinculada al original`,
+    });
+    this.emitHud(true);
   }
 
   private updateJoust(now: number): void {
@@ -546,8 +626,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const first = alive[firstIndex] as Combatant;
       for (let secondIndex = firstIndex + 1; secondIndex < alive.length; secondIndex += 1) {
         const second = alive[secondIndex] as Combatant;
-        if (['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser'].includes(first.selection.weapon)
-          || ['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser'].includes(second.selection.weapon)) continue;
+        if (['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(first.selection.weapon)
+          || ['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(second.selection.weapon)) continue;
         if (segmentDistanceSquared(first.weapon.segment(), second.weapon.segment()) > 100) continue;
         if (!this.cooldowns.canTrigger(`parry-${first.id}`, second.id, now, ARENA.parryCooldownMs)) continue;
         const firstProgress = first.weapon.parry();
@@ -654,7 +734,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       let blocked = false;
       for (const defender of this.aliveFighters()) {
         if (defender === projectile.owner || now - projectile.lastDeflectedAt < 130) continue;
-        if (['unarmed', 'crusher', 'orbit', 'giant', 'laser'].includes(defender.selection.weapon)) continue;
+        if (['unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(defender.selection.weapon)) continue;
         if (projectile.kind === 'fireball' && defender.selection.weapon !== 'shield') continue;
         const segment = defender.weapon.segment();
         const blockDistance = defender.selection.weapon === 'shield'
@@ -830,6 +910,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       this, cloneSelection, this.nextEntitySequence++, spawn.x, spawn.y, cloneHealth, spawn.angle,
       {
         radius: cloneRadius, isClone: true, canClone: false, cloneOwnerId: source.id, generation: 1,
+        canDuplicate: target.selection.weapon === 'duplicator',
         visualSelection: cloneVisualSelection, visualWeaponType: 'grimoire',
       },
     );
@@ -839,6 +920,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     clone.orb.setVelocity(Math.cos(spawn.angle) * inheritedSpeed, Math.sin(spawn.angle) * inheritedSpeed);
     this.fighters.push(clone);
     if (clone.selection.weapon === 'joust') this.scheduleNextJoust(clone, this.time.now);
+    if (clone.canDuplicate) this.scheduleNextDuplicate(clone, this.time.now);
     this.spark(clone.x, clone.y, source.visualColor, 12);
     gameEvents.emit('battle:event', { kind: 'hit', title: `${source.displayName} CREA CLON`, detail: `${cloneHealth} de vida · habilidades de ${target.displayName}` });
     this.emitHud(true);
@@ -946,17 +1028,53 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private eliminate(target: Combatant, attacker: Combatant): void {
-    const lastStanding = this.aliveFighters().length === 2;
-    if (lastStanding) {
+    const duplicates = target.canDuplicate
+      ? linkedDuplicates(this.aliveFighters(), target.id)
+      : [];
+    for (const duplicate of duplicates) {
+      const duplicatePosition = { x: duplicate.x, y: duplicate.y };
+      this.destroyCombatant(duplicate);
+      this.spark(duplicatePosition.x, duplicatePosition.y, target.visualColor, 8);
+    }
+    const { x, y } = target;
+    this.destroyCombatant(target);
+    const survivors = this.aliveFighters();
+    const contenderIds = livingContenderIds(survivors);
+    const battleEnded = contenderIds.size === 1 && survivors.length > 0;
+    if (battleEnded) {
       this.ending = true;
       this.matter.world.engine.timing.timeScale = 0.2;
       this.time.timeScale = 0.35;
       this.tweens.timeScale = 0.45;
     }
-    const { x, y } = target;
+    this.audio.elimination();
+    this.cameras.main.shake(battleEnded ? 420 : 180, battleEnded ? 0.012 : 0.006);
+    this.spark(x, y, target.visualColor, battleEnded ? 28 : 16);
+    gameEvents.emit('battle:event', {
+      kind: 'elimination',
+      title: `${target.displayName} ELIMINADO`,
+      detail: duplicates.length > 0
+        ? `${attacker.displayName} elimina al original y sus ${duplicates.length} copias`
+        : `${attacker.displayName} da el golpe final`,
+    });
+    this.emitHud(true);
+    if (!battleEnded) return;
+    const winner = survivors.find((fighter) => !fighter.duplicateOwnerId) ?? survivors[0] as Combatant;
+    window.setTimeout(() => {
+      this.matter.world.engine.timing.timeScale = this.simulationSpeed;
+      this.time.timeScale = this.simulationSpeed;
+      this.tweens.timeScale = this.simulationSpeed;
+      this.audio.victory();
+      gameEvents.emit('battle:ended', { winner: winner.hudState(), weapon: winner.selection.weapon, seed: this.battleConfig.seed });
+    }, 850);
+  }
+
+  private destroyCombatant(target: Combatant): void {
     this.poisonEffects.delete(target.id);
     this.nextShotAt.delete(target.id);
     this.nextLaserHitAt.delete(target.id);
+    this.nextDuplicateAt.delete(target.id);
+    this.duplicateCountsByOwner.delete(target.id);
     this.joustNextCharge.delete(target.id);
     this.joustCharging.delete(target.id);
     this.joustChargeAngles.delete(target.id);
@@ -965,20 +1083,6 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.cooldowns.clearFor(target.id);
     target.eliminate();
     if (target.isClone) this.fighters = this.fighters.filter((fighter) => fighter !== target);
-    this.audio.elimination();
-    this.cameras.main.shake(lastStanding ? 420 : 180, lastStanding ? 0.012 : 0.006);
-    this.spark(x, y, target.visualColor, lastStanding ? 28 : 16);
-    gameEvents.emit('battle:event', { kind: 'elimination', title: `${target.displayName} ELIMINADO`, detail: `${attacker.displayName} da el golpe final` });
-    this.emitHud(true);
-    if (!lastStanding) return;
-    const winner = this.aliveFighters()[0] as Combatant;
-    window.setTimeout(() => {
-      this.matter.world.engine.timing.timeScale = this.simulationSpeed;
-      this.time.timeScale = this.simulationSpeed;
-      this.tweens.timeScale = this.simulationSpeed;
-      this.audio.victory();
-      gameEvents.emit('battle:ended', { winner: winner.hudState(), weapon: winner.selection.weapon, seed: this.battleConfig.seed });
-    }, 850);
   }
 
   private onCollisionStart(event: CollisionEvent): void {
@@ -1020,8 +1124,15 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private registerCrossoverProgress(fighter: Combatant): void {
-    if (!['crusher', 'orbit', 'giant'].includes(fighter.selection.weapon)) return;
-    const progression = fighter.weapon.registerObstacleBounce();
+    if (!['crusher', 'orbit', 'giant', 'lyna'].includes(fighter.selection.weapon)) return;
+    let progression: string;
+    if (fighter.selection.weapon === 'lyna') {
+      const speed = this.random.between(CROSSOVER.lynaMinimumAngularSpeed, CROSSOVER.lynaMaximumAngularSpeed)
+        * (this.random.next() < 0.5 ? -1 : 1);
+      progression = fighter.weapon.registerLynaOrb(speed);
+    } else {
+      progression = fighter.weapon.registerObstacleBounce();
+    }
     if (fighter.selection.weapon === 'giant') fighter.growRadius(CROSSOVER.giantRadiusGrowth);
     this.spark(fighter.x, fighter.y, fighter.visualColor, 5);
     this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.visualColorCss, true);

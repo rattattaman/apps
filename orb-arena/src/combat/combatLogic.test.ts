@@ -62,6 +62,7 @@ describe('mecánicas de Crossover', () => {
     expect(progressAfterObstacleBounce('crusher', base)).toMatchObject({ damage: 9 });
     expect(progressAfterObstacleBounce('orbit', { ...base, satelliteCount: 2 })).toMatchObject({ satelliteCount: 3 });
     expect(progressAfterObstacleBounce('giant', { ...base, sizeLevel: 2 })).toMatchObject({ sizeLevel: 3 });
+    expect(progressAfterObstacleBounce('lyna', { ...base, lynaOrbCount: 2 })).toMatchObject({ lynaOrbCount: 3 });
     expect(progressAfterObstacleBounce('sword', base)).toBe(base);
   });
 

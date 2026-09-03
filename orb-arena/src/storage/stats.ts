@@ -13,7 +13,7 @@ const EMPTY_STATS: ArenaStats = {
   victories: 0,
   weaponWins: {
     sword: 0, dagger: 0, spear: 0, bow: 0, wand: 0,
-    shield: 0, scythe: 0, unarmed: 0, wrench: 0, katana: 0, joust: 0, shuriken: 0, grimoire: 0, scepter: 0, bottle: 0, hammer: 0, crusher: 0, orbit: 0, giant: 0, laser: 0,
+    shield: 0, scythe: 0, unarmed: 0, wrench: 0, katana: 0, joust: 0, shuriken: 0, grimoire: 0, scepter: 0, bottle: 0, hammer: 0, crusher: 0, orbit: 0, giant: 0, laser: 0, lyna: 0, duplicator: 0,
   },
 };
 

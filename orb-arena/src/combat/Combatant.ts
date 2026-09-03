@@ -19,6 +19,8 @@ export interface CombatantOptions {
   generation?: number;
   visualSelection?: FighterSelection;
   visualWeaponType?: WeaponType;
+  canDuplicate?: boolean;
+  duplicateOwnerId?: string;
 }
 
 export class Combatant {
@@ -34,6 +36,8 @@ export class Combatant {
   readonly generation: number;
   readonly visualSelection: FighterSelection;
   readonly visualWeaponType: WeaponType;
+  readonly canDuplicate: boolean;
+  readonly duplicateOwnerId?: string;
   health: number;
   poisonStacks = 0;
   alive = true;
@@ -62,6 +66,8 @@ export class Combatant {
     this.generation = options.generation ?? 0;
     this.visualSelection = options.visualSelection ?? selection;
     this.visualWeaponType = options.visualWeaponType ?? selection.weapon;
+    this.canDuplicate = options.canDuplicate ?? (selection.weapon === 'duplicator' && !this.isClone);
+    this.duplicateOwnerId = options.duplicateOwnerId;
     this.orb = scene.matter.add.image(x, y, 'orb', undefined, {
       shape: { type: 'circle', radius: this.radius },
       restitution: 1,
@@ -149,7 +155,7 @@ export class Combatant {
     return {
       id: this.id,
       name: this.displayName,
-      weaponName: this.isClone ? `Clon · ${definition.name}` : definition.name,
+      weaponName: this.duplicateOwnerId ? `Copia · ${definition.name}` : this.isClone ? `Clon · ${definition.name}` : definition.name,
       ability: definition.ability,
       colorCss: this.visualColorCss,
       health: this.health,
