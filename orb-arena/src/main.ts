@@ -6,12 +6,10 @@ import { BattleScene } from './scenes/BattleScene';
 import { loadStats, recordBattle } from './storage/stats';
 import type { BattleConfig, WeaponType } from './types';
 import { generateSeed } from './utils/seededRandom';
+import { Scoreboard } from './ui/Scoreboard';
+import { Phase2Controller } from './ui/Phase2Controller';
+import type { BattleResult } from './types';
 
-interface BattleEndPayload {
-  winner: FighterHudState;
-  weapon: WeaponType;
-  seed: string;
-}
 
 interface BattleEventPayload {
   kind: string;
@@ -34,6 +32,9 @@ const healthOutput = byId<HTMLOutputElement>('health-output');
 const seedInput = byId<HTMLInputElement>('seed-input');
 const seedDisplay = byId<HTMLElement>('seed-display');
 const scoreboard = byId<HTMLElement>('scoreboard');
+const scoreboardView = new Scoreboard(scoreboard);
+const feedTimers = new Set<number>();
+const entryTimers = new Map<Element, Set<number>>();
 const eventFeed = byId<HTMLDivElement>('event-feed');
 const winnerPanel = byId<HTMLDivElement>('winner-panel');
 const pauseButton = byId<HTMLButtonElement>('pause-button');
@@ -69,6 +70,7 @@ const game = new Phaser.Game({
   backgroundColor: '#0b0e17',
   transparent: true,
   antialias: true,
+  fps: { smoothStep: false },
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
   physics: {
     default: 'matter',
@@ -80,6 +82,21 @@ const game = new Phaser.Game({
 function battleScene(): BattleScene {
   return game.scene.getScene('battle') as unknown as BattleScene;
 }
+
+const phase2 = new Phase2Controller(startBattle, value => {
+  game.registry.set('effectsVolume', value);
+  if (game.scene.isActive('battle') || game.scene.isPaused('battle')) battleScene().setEffectsVolume(value);
+}, () => battleScene().skipFinalMoment());
+muted = phase2.preferences.muted;
+particlesEnabled = !phase2.preferences.reduced;
+game.registry.set('effectsVolume', phase2.preferences.effects);
+game.registry.set('muted', muted);
+game.registry.set('particlesEnabled', particlesEnabled);
+muteButton.setAttribute('aria-pressed', String(muted));
+particlesButton.setAttribute('aria-pressed', String(particlesEnabled));
+muteButton.textContent = muted ? '♫' : '♪';
+particlesButton.classList.toggle('disabled', !particlesEnabled);
+particlesButton.textContent = particlesEnabled ? '✦ Partículas' : 'Partículas off';
 
 function renderRoster(): void {
   const count = Number(fighterCount.value);
@@ -109,15 +126,7 @@ function readConfig(): BattleConfig {
 }
 
 function renderScoreboard(states: FighterHudState[]): void {
-  scoreboard.style.setProperty('--fighter-count', String(states.length));
-  scoreboard.innerHTML = states.map((fighter) => {
-    const healthPercent = Math.max(0, fighter.health / fighter.maxHealth * 100);
-    return `<article class="fighter-card ${fighter.alive ? '' : 'eliminated'}" style="--fighter-color:${fighter.colorCss}">
-      <span class="fighter-swatch"></span>
-      <span class="fighter-card-copy"><b>${fighter.name}</b><small>${fighter.weaponName} · ${fighter.stat}</small></span>
-      <span class="health"><b>${Math.ceil(fighter.health)}</b><span><i style="width:${healthPercent}%"></i></span></span>
-    </article>`;
-  }).join('');
+  scoreboardView.render(states);
 }
 
 function initialHud(config: BattleConfig): FighterHudState[] {
@@ -167,6 +176,7 @@ function initialHud(config: BattleConfig): FighterHudState[] {
 function startBattle(config: BattleConfig): void {
   if (startPending) return;
   startPending = true;
+  phase2.playing(true);
   startButton.disabled = true;
   transitionOverlay.classList.remove('hidden');
   currentConfig = structuredClone(config);
@@ -175,7 +185,7 @@ function startBattle(config: BattleConfig): void {
   battleStatus.textContent = currentConfig.chaosMode ? 'CAOS EN CURSO' : 'BATALLA EN CURSO';
   renderScoreboard(initialHud(currentConfig));
   winnerPanel.classList.add('hidden');
-  eventFeed.innerHTML = '';
+  clearEventFeed();
   setupOverlay.classList.add('hidden');
   paused = false;
   updatePauseButton();
@@ -190,6 +200,8 @@ function startBattle(config: BattleConfig): void {
 }
 
 function openSetup(newSeed: boolean): void {
+  phase2.playing(false);
+  clearEventFeed();
   transitionOverlay.classList.add('hidden');
   startPending = false;
   startButton.disabled = false;
@@ -203,9 +215,33 @@ function addEvent(payload: BattleEventPayload): void {
   entry.className = `event-entry ${payload.kind}`;
   entry.innerHTML = `<b>${payload.title}</b><span>${payload.detail}</span>`;
   eventFeed.prepend(entry);
-  while (eventFeed.children.length > 4) eventFeed.lastElementChild?.remove();
-  window.setTimeout(() => entry.classList.add('faded'), 2_400);
-  window.setTimeout(() => entry.remove(), 3_100);
+  while (eventFeed.children.length > 4 && eventFeed.lastElementChild) removeFeedEntry(eventFeed.lastElementChild);
+  scheduleFeed(entry, () => entry.classList.add('faded'), 2_400);
+  scheduleFeed(entry, () => removeFeedEntry(entry), 3_100);
+}
+
+function scheduleFeed(entry: Element, callback: () => void, delay: number): void {
+  const timers = entryTimers.get(entry) ?? new Set<number>();
+  entryTimers.set(entry, timers);
+  const timer = window.setTimeout(() => { feedTimers.delete(timer); timers.delete(timer); callback(); }, delay);
+  feedTimers.add(timer);
+  timers.add(timer);
+}
+
+function removeFeedEntry(entry: Element): void {
+  for (const timer of entryTimers.get(entry) ?? []) {
+    window.clearTimeout(timer);
+    feedTimers.delete(timer);
+  }
+  entryTimers.delete(entry);
+  entry.remove();
+}
+
+function clearEventFeed(): void {
+  for (const timer of feedTimers) window.clearTimeout(timer);
+  feedTimers.clear();
+  entryTimers.clear();
+  eventFeed.replaceChildren();
 }
 
 function updatePauseButton(): void {
@@ -227,11 +263,12 @@ healthInput.addEventListener('input', () => { healthOutput.value = healthInput.v
 byId<HTMLButtonElement>('random-seed').addEventListener('click', () => { seedInput.value = generateSeed(); });
 setupForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  startBattle(readConfig());
+  phase2.submit(readConfig());
 });
 
 pauseButton.addEventListener('click', () => {
   paused = battleScene().togglePause();
+  phase2.playing(!paused);
   updatePauseButton();
 });
 byId<HTMLButtonElement>('restart-button').addEventListener('click', () => startBattle(currentConfig));
@@ -255,6 +292,7 @@ muteButton.addEventListener('click', () => {
   muteButton.setAttribute('aria-pressed', String(muted));
   game.registry.set('muted', muted);
   battleScene().setMuted(muted);
+  phase2.sound(muted);
 });
 
 particlesButton.addEventListener('click', () => {
@@ -264,6 +302,7 @@ particlesButton.addEventListener('click', () => {
   particlesButton.textContent = particlesEnabled ? '✦ Partículas' : 'Partículas off';
   game.registry.set('particlesEnabled', particlesEnabled);
   battleScene().setParticles(particlesEnabled);
+  phase2.effects(particlesEnabled);
 });
 
 window.addEventListener('keydown', (event) => {
@@ -276,17 +315,22 @@ window.addEventListener('keydown', (event) => {
 gameEvents.on('battle:hud', (states: FighterHudState[]) => renderScoreboard(states));
 gameEvents.on('battle:event', (payload: BattleEventPayload) => addEvent(payload));
 gameEvents.on('battle:started', () => {
+  // SceneManager finishes CREATE by setting RUNNING; pause after that transition.
+  if (!setupOverlay.classList.contains('hidden')) game.events.once(Phaser.Core.Events.POST_STEP, () => {
+    if (!setupOverlay.classList.contains('hidden')) game.scene.pause('battle');
+  });
   startPending = false;
   startButton.disabled = false;
   transitionOverlay.classList.add('hidden');
 });
-gameEvents.on('battle:ended', (payload: BattleEndPayload) => {
+gameEvents.on('battle:ended', (payload: BattleResult) => {
   recordBattle(payload.weapon);
   updateCareerStats();
   battleStatus.textContent = 'BATALLA FINALIZADA';
-  byId('winner-name').textContent = `${payload.winner.name} GANA`;
-  byId('winner-name').style.color = payload.winner.colorCss;
-  byId('winner-detail').textContent = `${payload.winner.weaponName} · ${payload.winner.stat} · Semilla ${payload.seed}`;
+  byId('winner-name').textContent = payload.team ? `EQUIPO ${payload.team} GANA` : payload.winner ? `${payload.winner.name} GANA` : 'EMPATE';
+  byId('winner-name').style.color = payload.winner?.colorCss ?? '#ffffff';
+  byId('winner-detail').textContent = payload.winner ? `${payload.winner.weaponName} · ${payload.winner.stat} · Semilla ${payload.seed}` : 'Eliminación simultánea';
+  phase2.result(payload);
   winnerPanel.classList.remove('hidden');
 });
 

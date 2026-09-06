@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 export const gameEvents = new Phaser.Events.EventEmitter();
 
 export interface FighterHudState {
+  team?: 'A' | 'B';
   id: string;
   name: string;
   weaponName: string;

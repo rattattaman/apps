@@ -1,11 +1,13 @@
 export interface CloneSourceState {
+  id?: string;
   alive: boolean;
   isClone: boolean;
   canClone: boolean;
 }
 
-export function canCreateClone(source: CloneSourceState): boolean {
-  return source.alive && source.canClone && !source.isClone;
+export function canCreateClone(source: CloneSourceState, target?: { cloneOwnerId?: string }): boolean {
+  return source.alive && source.canClone && !source.isClone
+    && !(source.id !== undefined && target?.cloneOwnerId === source.id);
 }
 
 export function cloneHealthForNumber(cloneNumber: number): number {

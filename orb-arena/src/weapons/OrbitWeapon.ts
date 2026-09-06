@@ -15,6 +15,18 @@ export class OrbitWeapon {
   private lynaSpeeds: number[] = [];
   private progress: WeaponProgress;
   rangeScale = 1;
+  private drawnLength = NaN;
+  private drawnShieldWidth = NaN;
+  private drawnLaserLength = NaN;
+  private cachedSegment: Segment | null = null;
+  private segmentX = NaN;
+  private segmentY = NaN;
+  private segmentAngle = NaN;
+  private segmentRange = NaN;
+  private segmentRadius = NaN;
+  private segmentShieldWidth = NaN;
+  private segmentArenaWidth = NaN;
+  private segmentArenaHeight = NaN;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -72,7 +84,7 @@ export class OrbitWeapon {
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
 
-  update(deltaSeconds: number, spinDirection: number): void {
+  update(deltaSeconds: number, spinDirection: number, render = true): void {
     if (this.owner.selection.weapon === 'hammer') {
       this.progress.angularSpeed = advanceHammerSpin(this.progress.angularSpeed, this.maxAngularSpeed, HAMMER.spinAcceleration, deltaSeconds);
     }
@@ -81,8 +93,10 @@ export class OrbitWeapon {
         + (this.lynaSpeeds[index] ?? 0) * spinDirection * deltaSeconds;
     }
     this.angle += this.progress.angularSpeed * this.direction * spinDirection * deltaSeconds;
-    this.draw();
+    if (render) this.render();
   }
+
+  render(): void { this.draw(); }
 
   registerHit(): string {
     this.progress = progressAfterHit(this.owner.selection.weapon, this.progress);
@@ -135,9 +149,23 @@ export class OrbitWeapon {
   }
 
   segment(): Segment {
-    if (this.owner.selection.weapon === 'shield') return this.shieldSegment();
-    if (this.owner.selection.weapon === 'laser') return this.laserSegment();
-    return this.radialSegment();
+    const arenaWidth = this.owner.selection.weapon === 'laser' ? this.scene.scale.width : 0;
+    const arenaHeight = this.owner.selection.weapon === 'laser' ? this.scene.scale.height : 0;
+    if (this.cachedSegment && this.segmentX === this.owner.x && this.segmentY === this.owner.y
+      && this.segmentAngle === this.angle && this.segmentRange === this.range
+      && this.segmentRadius === this.owner.radius && this.segmentShieldWidth === this.shieldWidth
+      && this.segmentArenaWidth === arenaWidth && this.segmentArenaHeight === arenaHeight) return this.cachedSegment;
+    this.segmentX = this.owner.x;
+    this.segmentY = this.owner.y;
+    this.segmentAngle = this.angle;
+    this.segmentRange = this.range;
+    this.segmentRadius = this.owner.radius;
+    this.segmentShieldWidth = this.shieldWidth;
+    this.segmentArenaWidth = arenaWidth;
+    this.segmentArenaHeight = arenaHeight;
+    this.cachedSegment = this.owner.selection.weapon === 'shield' ? this.shieldSegment()
+      : this.owner.selection.weapon === 'laser' ? this.laserSegment() : this.radialSegment();
+    return this.cachedSegment;
   }
 
   private radialSegment(): Segment {
@@ -168,12 +196,14 @@ export class OrbitWeapon {
     const type = this.owner.visualWeaponType;
     const definition = WEAPONS[type];
     if (type === 'unarmed' || type === 'crusher' || type === 'orbit' || type === 'giant' || type === 'laser' || type === 'lyna' || type === 'duplicator') {
-      this.graphics.clear();
       return;
     }
     if (type === 'shield') {
       const segment = this.shieldSegment();
-      this.graphics.clear().setPosition(segment.start.x, segment.start.y).setRotation(this.angle + Math.PI / 2)
+      this.graphics.setPosition(segment.start.x, segment.start.y).setRotation(this.angle + Math.PI / 2);
+      if (this.drawnShieldWidth === this.shieldWidth) return;
+      this.drawnShieldWidth = this.shieldWidth;
+      this.graphics.clear()
         .lineStyle(SHIELD.thickness + 7, definition.color, 0.16)
         .beginPath().moveTo(0, 0).lineTo(this.shieldWidth, 0).strokePath()
         .lineStyle(SHIELD.thickness, definition.color, 0.95)
@@ -183,8 +213,11 @@ export class OrbitWeapon {
       return;
     }
     const segment = this.radialSegment();
-    const length = Phaser.Math.Distance.Between(segment.start.x, segment.start.y, segment.end.x, segment.end.y);
-    this.graphics.clear().setPosition(segment.start.x, segment.start.y).setRotation(this.angle);
+    const length = this.range + 4;
+    this.graphics.setPosition(segment.start.x, segment.start.y).setRotation(this.angle);
+    if (this.drawnLength === length) return;
+    this.drawnLength = length;
+    this.graphics.clear();
     if (type === 'bow') {
       this.graphics.lineStyle(5, definition.color, 1)
         .beginPath().arc(length * 0.56, 0, 19, -1.25, 1.25, false).strokePath()
@@ -289,8 +322,8 @@ export class OrbitWeapon {
   }
 
   private drawSatellites(): void {
-    this.satelliteGraphics.clear();
     if (this.owner.selection.weapon !== 'orbit') return;
+    this.satelliteGraphics.clear();
     for (const position of this.satellitePositions()) {
       this.satelliteGraphics.fillStyle(this.owner.visualColor, 0.2)
         .fillCircle(position.x, position.y, CROSSOVER.satelliteRadius + 4)
@@ -302,11 +335,13 @@ export class OrbitWeapon {
   }
 
   private drawLaserAbility(): void {
-    this.laserGraphics.clear();
     if (this.owner.selection.weapon !== 'laser') return;
     const segment = this.laserSegment();
     const length = Phaser.Math.Distance.Between(segment.start.x, segment.start.y, segment.end.x, segment.end.y);
-    this.laserGraphics.setPosition(segment.start.x, segment.start.y).setRotation(this.angle)
+    this.laserGraphics.setPosition(segment.start.x, segment.start.y).setRotation(this.angle);
+    if (Math.abs(this.drawnLaserLength - length) < 1e-7) return;
+    this.drawnLaserLength = length;
+    this.laserGraphics.clear()
       .lineStyle(13, this.owner.visualColor, 0.12)
       .beginPath().moveTo(0, 0).lineTo(length, 0).strokePath()
       .lineStyle(5, this.owner.visualColor, 0.9)
@@ -317,8 +352,8 @@ export class OrbitWeapon {
   }
 
   private drawLynaOrbs(): void {
-    this.lynaGraphics.clear();
     if (this.owner.selection.weapon !== 'lyna') return;
+    this.lynaGraphics.clear();
     for (const position of this.lynaOrbPositions()) {
       this.lynaGraphics.fillStyle(this.owner.visualColor, 0.18)
         .fillCircle(position.x, position.y, CROSSOVER.lynaOrbRadius + 4)

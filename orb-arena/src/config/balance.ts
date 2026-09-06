@@ -126,7 +126,7 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
   shield: {
     type: 'shield', name: 'Escudo', glyph: '◖', color: 0x5de3a1,
-    ability: 'Refleja el daño y se ensancha al bloquear', damage: 0, range: 38, angularSpeed: 2.7, initialShieldSize: 1,
+    ability: 'Choque: 1 de daño; refleja ataques y se ensancha al bloquear', damage: 1, range: 38, angularSpeed: 2.7, initialShieldSize: 1,
   },
   scythe: {
     type: 'scythe', name: 'Guadaña', glyph: '☾', color: 0x9bea55,

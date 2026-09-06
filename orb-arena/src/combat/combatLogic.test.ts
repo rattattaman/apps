@@ -37,6 +37,48 @@ describe('recarga por atacante y objetivo', () => {
     expect(cooldowns.canTrigger('sol', 'vanta', 1200, 400)).toBe(true);
     expect(cooldowns.canTrigger('sol', 'nexo', 1400, 400)).toBe(true);
   });
+
+  it('limpia los contactos propios sin borrar identificadores con el mismo prefijo', () => {
+    const cooldowns = new ContactCooldowns();
+    const ownContacts = [
+      ['fighter-1', 'fighter-2'],
+      ['fighter-2', 'fighter-1'],
+      ['shield-fighter-1', 'fighter-2'],
+      ['parry-fighter-1', 'fighter-2'],
+      ['impact-fighter-1', 'fighter-2'],
+      ['crusher-fighter-1', 'fighter-2'],
+      ['giant-fighter-1', 'fighter-2'],
+      ['fighter-1-orbit-3', 'fighter-2'],
+      ['fighter-1-lyna-4', 'fighter-2'],
+    ] as const;
+    const unrelatedContacts = [
+      ['fighter-10', 'fighter-2'],
+      ['fighter-2', 'fighter-10'],
+      ['shield-fighter-10', 'fighter-2'],
+      ['parry-fighter-10', 'fighter-2'],
+      ['fighter-10-orbit-3', 'fighter-2'],
+      ['fighter-11-lyna-4', 'fighter-2'],
+    ] as const;
+    for (const [attacker, target] of [...ownContacts, ...unrelatedContacts]) {
+      expect(cooldowns.canTrigger(attacker, target, 1000, 400)).toBe(true);
+    }
+    cooldowns.clearFor('fighter-1');
+    for (const [attacker, target] of ownContacts) {
+      expect(cooldowns.canTrigger(attacker, target, 1100, 400)).toBe(true);
+    }
+    for (const [attacker, target] of unrelatedContacts) {
+      expect(cooldowns.canTrigger(attacker, target, 1100, 400)).toBe(false);
+    }
+  });
+
+  it('reinicia todas las recargas antes de una nueva partida', () => {
+    const cooldowns = new ContactCooldowns();
+    cooldowns.canTrigger('fighter-0', 'fighter-1', 1000, 400);
+    cooldowns.canTrigger('fighter-1-orbit-0', 'fighter-2', 1000, 400);
+    cooldowns.clear();
+    expect(cooldowns.canTrigger('fighter-0', 'fighter-1', 1001, 400)).toBe(true);
+    expect(cooldowns.canTrigger('fighter-1-orbit-0', 'fighter-2', 1001, 400)).toBe(true);
+  });
 });
 
 describe('ráfaga escalonada del arco', () => {

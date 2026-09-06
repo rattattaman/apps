@@ -121,7 +121,17 @@ export class ContactCooldowns {
 
   clearFor(fighterId: string): void {
     for (const key of this.contacts.keys()) {
-      if (key.includes(fighterId)) this.contacts.delete(key);
+      const separator = key.indexOf('>');
+      const attackerId = key.slice(0, separator);
+      const targetId = key.slice(separator + 1);
+      if (targetId === fighterId || attackerId === fighterId
+        || attackerId.endsWith(`-${fighterId}`) || attackerId.startsWith(`${fighterId}-`)) {
+        this.contacts.delete(key);
+      }
     }
+  }
+
+  clear(): void {
+    this.contacts.clear();
   }
 }

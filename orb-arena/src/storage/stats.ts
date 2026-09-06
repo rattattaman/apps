@@ -31,11 +31,13 @@ export function loadStats(): ArenaStats {
   }
 }
 
-export function recordBattle(winnerWeapon: WeaponType): ArenaStats {
+export function recordBattle(winnerWeapon: WeaponType | null): ArenaStats {
   const stats = loadStats();
   stats.battles += 1;
-  stats.victories += 1;
-  stats.weaponWins[winnerWeapon] += 1;
+  if (winnerWeapon) {
+    stats.victories += 1;
+    stats.weaponWins[winnerWeapon] += 1;
+  }
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch { /* Private mode. */ }
   return stats;
 }

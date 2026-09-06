@@ -52,9 +52,11 @@ export class Projectile {
 
   update(now: number): void {
     if (!this.alive) return;
-    this.travelledDistance += Phaser.Math.Distance.Between(this.lastX, this.lastY, this.x, this.y);
-    this.lastX = this.x;
-    this.lastY = this.y;
+    if (this.kind === 'bottle') {
+      this.travelledDistance += Phaser.Math.Distance.Between(this.lastX, this.lastY, this.x, this.y);
+      this.lastX = this.x;
+      this.lastY = this.y;
+    }
     const body = this.sprite.body as MatterJS.BodyType;
     if (this.kind !== 'fireball') this.sprite.setRotation(Math.atan2(body.velocity.y, body.velocity.x));
     if (now - this.bornAt > PROJECTILES.lifetimeMs) this.destroy();

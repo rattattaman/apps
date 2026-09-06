@@ -2,6 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from './cloneLogic';
 
 describe('mecánica de clones de Grimorio', () => {
+  it('el original no vuelve a copiar un clon propio ni sus descendientes', () => {
+    const source = { id: 'fighter-0', alive: true, isClone: false, canClone: true };
+    expect(canCreateClone(source, { cloneOwnerId: 'fighter-0' })).toBe(false);
+    expect(canCreateClone(source, { cloneOwnerId: 'fighter-1' })).toBe(true);
+    expect(canCreateClone(source, {})).toBe(true);
+  });
   it('solo permite clonar al Grimorio original vivo', () => {
     expect(canCreateClone({ alive: true, isClone: false, canClone: true })).toBe(true);
     expect(canCreateClone({ alive: true, isClone: true, canClone: false })).toBe(false);

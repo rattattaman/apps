@@ -12,10 +12,19 @@ import { Projectile } from '../projectiles/Projectile';
 import type { BattleConfig } from '../types';
 import { pointToSegmentDistanceSquared, segmentDistanceSquared } from '../utils/geometry';
 import { SeededRandom } from '../utils/seededRandom';
+import { FixedStepClock } from '../simulation/FixedStepClock';
+import { nearestTarget } from '../combat/targeting';
+import { rivals, survivingTeams } from '../combat/allegiance';
+import { BattleLedger } from '../combat/BattleLedger';
+import type { BattleResult } from '../types';
+import { BattleEffects } from '../presentation/BattleEffects';
+import { findFreePosition, type Occupant } from '../summons/placement';
 
 interface CollisionPair {
   bodyA: MatterJS.BodyType;
   bodyB: MatterJS.BodyType;
+  velocityA?: { x: number; y: number };
+  velocityB?: { x: number; y: number };
 }
 
 interface CollisionEvent {
@@ -48,14 +57,24 @@ const PREVIEW_CONFIG: BattleConfig = {
 };
 
 export class BattleScene extends Phaser.Scene implements ChaosHost {
+  private trails!: Phaser.GameObjects.Graphics;
+  private readonly ledger = new BattleLedger();
+  private resultSent = false;
   private fighters: Combatant[] = [];
   private projectiles: Projectile[] = [];
   private turrets: TurretState[] = [];
   private slimeZones: SlimeZone[] = [];
   private walls: MatterJS.BodyType[] = [];
   private readonly cooldowns = new ContactCooldowns();
+  private readonly simulation = new FixedStepClock();
+  private readonly collisionPairs: CollisionPair[] = [];
+  private livingCache: Combatant[] | null = null;
+  private victoryDelay: number | null = null;
+  private pendingWinner: Combatant | null = null;
+  private spawnSpaceWarning = false;
   private readonly audio = new SoundEngine();
   private random = new SeededRandom(PREVIEW_CONFIG.seed);
+  private effects!: BattleEffects;
   private battleConfig: BattleConfig = PREVIEW_CONFIG;
   private chaosController: ChaosController | null = null;
   private arenaSize: number = ARENA.width;
@@ -91,28 +110,77 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   create(): void {
     this.resetState();
+    // Phaser's Clock normally uses wall timestamps, whereas its timers scale only delta.
+    // Drive both it and Matter explicitly so every rule shares the same fixed ticks.
+    this.events.off(Phaser.Scenes.Events.PRE_UPDATE, this.time.preUpdate, this.time);
+    this.events.off(Phaser.Scenes.Events.UPDATE, this.time.update, this.time);
+    this.matter.world.autoUpdate = false;
+    this.events.on(Phaser.Scenes.Events.PAUSE, this.pauseAudio, this);
+    this.events.on(Phaser.Scenes.Events.RESUME, this.resumeAudio, this);
+    this.game.events.on(Phaser.Core.Events.BLUR, this.pauseAudio, this);
+    this.game.events.on(Phaser.Core.Events.FOCUS, this.resumeAudio, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdownBattle, this);
     this.cameras.main.setSize(this.arenaSize, this.arenaSize);
     this.createTextures();
     this.arenaBorder = this.add.graphics().setDepth(1);
+    this.trails = this.add.graphics().setDepth(2);
     this.createWalls();
     this.createFighters();
+    this.livingCache = null;
     this.createTurrets();
     this.matter.world.on('collisionstart', this.onCollisionStart, this);
-    this.matter.world.on('afterupdate', this.resolveWallContacts, this);
     this.startedAt = this.time.now;
     if (this.battleConfig.chaosMode) this.chaosController = new ChaosController(this, this.random);
     this.emitHud(true);
     gameEvents.emit('battle:started', this.battleConfig);
   }
 
-  update(time: number, delta: number): void {
-    const deltaSeconds = Math.min(delta, 34) / 1000;
+  update(_time: number, delta: number): void {
+    this.advanceSimulation(delta);
+    this.trails.clear();
+    if (this.particlesEnabled) for (const fighter of this.fighters) {
+      if (!fighter.alive || fighter.isClone) continue;
+      const velocity = (fighter.orb.body as MatterJS.BodyType).velocity;
+      this.trails.lineStyle(8, fighter.visualColor, .18).beginPath()
+        .moveTo(fighter.x - velocity.x * 5, fighter.y - velocity.y * 5)
+        .lineTo(fighter.x, fighter.y).strokePath();
+    }
+    for (const fighter of this.fighters) fighter.render();
+    this.emitHud();
+  }
+
+  advanceSimulation(delta: number): void {
+    this.simulation.advance(delta, this.victoryDelay !== null ? 0.2 : this.simulationSpeed, (time, step) => {
+      this.time.preUpdate();
+      this.time.update(time, step);
+      this.matter.world.step(step);
+      const pairs = this.collisionPairs.splice(0);
+      if (pairs.length) this.processCollisions({ pairs });
+      this.resolveWallContacts();
+      this.stepCombat(time, step / 1000);
+    });
+    if (this.victoryDelay !== null) {
+      this.victoryDelay -= delta;
+      if (this.victoryDelay <= 0) {
+        this.victoryDelay = null;
+        this.tweens.timeScale = this.simulationSpeed;
+        const winner = this.pendingWinner;
+        this.pendingWinner = null;
+        if (winner) {
+          this.audio.victory();
+          this.sendResult(winner);
+        }
+      }
+    }
+  }
+
+  private stepCombat(time: number, deltaSeconds: number): void {
     if (this.ending) {
       this.updateProjectiles(time);
       return;
     }
     const elapsed = time - this.startedAt;
-    for (const fighter of this.fighters) fighter.update(deltaSeconds, this.spinDirection, this.globalSpeed);
+    for (const fighter of this.fighters) fighter.update(deltaSeconds, this.spinDirection, this.globalSpeed, false);
     this.updateTurrets(time, deltaSeconds);
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
@@ -128,6 +196,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.updatePoison(time);
     this.chaosController?.update(elapsed);
     this.preventEndlessBattle(elapsed);
+    if (this.battleConfig.mode === 'teams') this.checkTeamVictory();
     if (time >= this.nextHudAt) this.emitHud();
   }
 
@@ -146,14 +215,30 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   setSimulationSpeed(speed: number): void {
     this.simulationSpeed = speed;
-    this.matter.world.engine.timing.timeScale = speed;
-    this.time.timeScale = speed;
     this.tweens.timeScale = speed;
+  }
+
+  private pauseAudio(): void { this.audio.setPaused(true); }
+  private resumeAudio(): void { this.audio.setPaused(this.scene.isPaused()); }
+
+  private shutdownBattle(): void {
+    this.audio.destroy();
+    this.victoryDelay = null;
+    this.pendingWinner = null;
+    this.spawnSpaceWarning = false;
+    this.collisionPairs.length = 0;
+    this.livingCache = null;
+    this.events.off(Phaser.Scenes.Events.PAUSE, this.pauseAudio, this);
+    this.events.off(Phaser.Scenes.Events.RESUME, this.resumeAudio, this);
+    this.game.events.off(Phaser.Core.Events.BLUR, this.pauseAudio, this);
+    this.game.events.off(Phaser.Core.Events.FOCUS, this.resumeAudio, this);
   }
 
   setMuted(muted: boolean): void {
     this.audio.setMuted(muted);
   }
+
+  setEffectsVolume(value: number): void { this.audio.setVolume(value); }
 
   setParticles(enabled: boolean): void {
     this.particlesEnabled = enabled;
@@ -208,12 +293,26 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private resetState(): void {
+    this.ledger.reset();
+    this.resultSent = false;
+    this.simulation.reset();
+    this.time.now = 0;
+    this.time.timeScale = 1;
+    this.cooldowns.clear();
+    this.collisionPairs.length = 0;
+    this.livingCache = null;
+    this.victoryDelay = null;
+    this.pendingWinner = null;
+    this.audio.clear();
+    this.audio.setPaused(false);
     this.battleConfig = (this.registry.get('battleConfig') as BattleConfig | undefined) ?? PREVIEW_CONFIG;
     this.arenaSize = arenaSizeForFighterCount(this.battleConfig.fighters.length);
     this.simulationSpeed = (this.registry.get('simulationSpeed') as number | undefined) ?? 1;
     this.particlesEnabled = (this.registry.get('particlesEnabled') as boolean | undefined) ?? true;
     this.audio.setMuted((this.registry.get('muted') as boolean | undefined) ?? false);
+    this.audio.setVolume((this.registry.get('effectsVolume') as number | undefined) ?? .5);
     this.random = new SeededRandom(this.battleConfig.seed);
+    this.effects = new BattleEffects(this, this.random);
     this.fighters = [];
     this.projectiles = [];
     this.turrets = [];
@@ -242,7 +341,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.cloneCountsByOwner.clear();
     this.duplicateCountsByOwner.clear();
     this.matter.world.setGravity(0, 0);
-    this.matter.world.engine.timing.timeScale = this.simulationSpeed;
+    this.matter.world.engine.timing.timeScale = 1;
+    this.tweens.timeScale = this.simulationSpeed;
   }
 
   private createTextures(): void {
@@ -250,6 +350,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const graphics = this.make.graphics({ x: 0, y: 0 });
       graphics.fillStyle(0xffffff).fillCircle(32, 32, ARENA.orbRadius);
       graphics.lineStyle(3, 0xffffff, 0.65).strokeCircle(32, 32, ARENA.orbRadius - 2);
+      graphics.fillStyle(0x263044, .16).fillEllipse(34, 43, 43, 20);
+      graphics.fillStyle(0xffffff, .5).fillEllipse(23, 19, 17, 8);
       graphics.generateTexture('orb', 64, 64);
       graphics.destroy();
     }
@@ -313,6 +415,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this, selection, index, position.x, position.y,
         this.battleConfig.startingHealth, this.random.between(0, Math.PI * 2),
       );
+      this.ledger.principal(fighter.id, selection, this.battleConfig.startingHealth);
       const heading = this.random.between(0, Math.PI * 2);
       const speed = this.random.between(3.2, 4.5);
       fighter.orb.setVelocity(Math.cos(heading) * speed, Math.sin(heading) * speed);
@@ -335,16 +438,18 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const ownerTurrets = this.turrets.filter((turret) => turret.owner === owner).length;
     const towardCenter = Math.atan2(this.arenaSize / 2 - owner.y, this.arenaSize / 2 - owner.x);
     const placementAngle = towardCenter + ownerTurrets * 2.39996;
-    const x = Phaser.Math.Clamp(
+    const desiredX = Phaser.Math.Clamp(
       owner.x + Math.cos(placementAngle) * TURRET.placementDistance,
       inset,
       this.arenaSize - inset,
     );
-    const y = Phaser.Math.Clamp(
+    const desiredY = Phaser.Math.Clamp(
       owner.y + Math.sin(placementAngle) * TURRET.placementDistance,
       inset,
       this.arenaSize - inset,
     );
+    const position = this.safeSpawnPosition({ x: desiredX, y: desiredY, angle: placementAngle }, TURRET.radius);
+    const { x, y } = position;
     const sprite = this.matter.add.image(x, y, 'turret', undefined, {
       shape: { type: 'circle', radius: TURRET.radius },
       isStatic: true,
@@ -435,8 +540,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     }
     for (const fighter of this.aliveFighters()) {
       fighter.orb.setPosition(
-        Phaser.Math.Clamp(fighter.x, inset + ARENA.orbRadius, this.arenaSize - inset - ARENA.orbRadius),
-        Phaser.Math.Clamp(fighter.y, inset + ARENA.orbRadius, this.arenaSize - inset - ARENA.orbRadius),
+        Phaser.Math.Clamp(fighter.x, inset + fighter.radius, this.arenaSize - inset - fighter.radius),
+        Phaser.Math.Clamp(fighter.y, inset + fighter.radius, this.arenaSize - inset - fighter.radius),
       );
     }
   }
@@ -448,7 +553,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of alive) {
-        if (target === attacker || !target.alive) continue;
+        if (!rivals(attacker, target) || !target.alive) continue;
         if (target.selection.weapon === 'shield'
           && segmentDistanceSquared(segment, target.weapon.segment()) <= (SHIELD.thickness + 5) ** 2) {
           if (this.cooldowns.canTrigger(`shield-${target.id}`, attacker.id, now, ARENA.weaponHitCooldownMs)) {
@@ -486,7 +591,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       for (let index = 0; index < satellites.length; index += 1) {
         const satellite = satellites[index] as { x: number; y: number };
         for (const target of alive) {
-          if (target === attacker || !target.alive) continue;
+          if (!rivals(attacker, target) || !target.alive) continue;
           const hitRadius = target.radius + CROSSOVER.satelliteRadius;
           if (Phaser.Math.Distance.Squared(satellite.x, satellite.y, target.x, target.y) > hitRadius ** 2) continue;
           if (!this.cooldowns.canTrigger(`${attacker.id}-orbit-${index}`, target.id, now, ARENA.weaponHitCooldownMs)) continue;
@@ -504,7 +609,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       for (let index = 0; index < orbiters.length; index += 1) {
         const orbiter = orbiters[index] as { x: number; y: number };
         for (const target of alive) {
-          if (target === attacker || !target.alive) continue;
+          if (!rivals(attacker, target) || !target.alive) continue;
           const hitRadius = target.radius + CROSSOVER.lynaOrbRadius;
           if (Phaser.Math.Distance.Squared(orbiter.x, orbiter.y, target.x, target.y) > hitRadius ** 2) continue;
           if (!this.cooldowns.canTrigger(`${attacker.id}-lyna-${index}`, target.id, now, ARENA.weaponHitCooldownMs)) continue;
@@ -519,11 +624,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     for (const attacker of alive) {
       if (attacker.selection.weapon !== 'laser' || now < (this.nextLaserHitAt.get(attacker.id) ?? 0)) continue;
       const segment = attacker.weapon.segment();
-      const target = alive
-        .filter((candidate) => candidate !== attacker && candidate.alive
-          && pointToSegmentDistanceSquared(candidate, segment) <= (candidate.radius + 3) ** 2)
-        .sort((first, second) => Phaser.Math.Distance.Squared(attacker.x, attacker.y, first.x, first.y)
-          - Phaser.Math.Distance.Squared(attacker.x, attacker.y, second.x, second.y))[0];
+      const target = nearestTarget(attacker, alive,
+        (candidate) => rivals(attacker, candidate) && pointToSegmentDistanceSquared(candidate, segment) <= (candidate.radius + 3) ** 2);
       if (!target) continue;
       const previousHealth = target.health;
       this.applyDamage(attacker, target, attacker.weapon.damage, 0.35, target.x, target.y);
@@ -563,21 +665,24 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       Math.max(1, source.health),
       spawn.angle,
       {
-        radius: source.radius,
+        team: source.team, radius: source.radius,
         isClone: true,
         canClone: false,
         canDuplicate: false,
         duplicateOwnerId: source.id,
+        cloneOwnerId: source.cloneOwnerId,
         generation: source.generation + 1,
         visualSelection: source.visualSelection,
         visualWeaponType: source.visualWeaponType,
       },
     );
+    this.ledger.summon(duplicate.id, source.id);
     duplicate.weapon.copyGameplayProgressFrom(source.weapon);
     const sourceBody = source.orb.body as MatterJS.BodyType;
     const speed = Phaser.Math.Clamp(Math.hypot(sourceBody.velocity.x, sourceBody.velocity.y), ARENA.minSpeed, ARENA.maxSpeed);
     duplicate.orb.setVelocity(Math.cos(spawn.angle) * speed, Math.sin(spawn.angle) * speed);
     this.fighters.push(duplicate);
+    this.livingCache = null;
     this.spark(duplicate.x, duplicate.y, source.visualColor, 9);
     gameEvents.emit('battle:event', {
       kind: 'hit', title: `${source.displayName} SE DUPLICA`, detail: `Copia ${duplicateNumber} vinculada al original`,
@@ -626,6 +731,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const first = alive[firstIndex] as Combatant;
       for (let secondIndex = firstIndex + 1; secondIndex < alive.length; secondIndex += 1) {
         const second = alive[secondIndex] as Combatant;
+        if (!rivals(first, second)) continue;
         if (['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(first.selection.weapon)
           || ['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(second.selection.weapon)) continue;
         if (segmentDistanceSquared(first.weapon.segment(), second.weapon.segment()) > 100) continue;
@@ -733,7 +839,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       }
       let blocked = false;
       for (const defender of this.aliveFighters()) {
-        if (defender === projectile.owner || now - projectile.lastDeflectedAt < 130) continue;
+        if (!rivals(projectile.owner, defender) || now - projectile.lastDeflectedAt < 130) continue;
         if (['unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(defender.selection.weapon)) continue;
         if (projectile.kind === 'fireball' && defender.selection.weapon !== 'shield') continue;
         const segment = defender.weapon.segment();
@@ -757,7 +863,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       }
       if (blocked) continue;
       for (const target of this.aliveFighters()) {
-        if (target === projectile.owner) continue;
+        if (!rivals(projectile.owner, target)) continue;
         if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > (target.radius + projectile.hitRadius) ** 2) continue;
         if (projectile.kind === 'fireball') {
           this.explodeFireball(projectile);
@@ -793,7 +899,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private updateSlimeZones(now: number): void {
     for (const zone of this.slimeZones) {
       if (now >= zone.expiresAt) { zone.sprite.destroy(); continue; }
-      const occupants = this.aliveFighters().filter((fighter) => fighter !== zone.owner
+      const occupants = this.aliveFighters().filter((fighter) => rivals(zone.owner, fighter)
         && Phaser.Math.Distance.Squared(fighter.x, fighter.y, zone.sprite.x, zone.sprite.y) <= (SLIME.radius + fighter.radius) ** 2);
       if (occupants.length === 0) continue;
       if (now >= zone.nextGrowthAt) {
@@ -804,7 +910,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       if (now < zone.nextTickAt) continue;
       zone.nextTickAt = now + SLIME.tickMs;
       for (const target of occupants) {
-        const applied = target.damage(zone.dps * SLIME.tickMs / 1_000);
+        const applied = this.dealDamage(zone.owner, target, zone.dps * SLIME.tickMs / 1_000);
         if (applied <= 0) continue;
         this.floatText(target.x, target.y - 25, `−${applied.toFixed(1)}`, '#8cff79', true);
         if (target.health <= 0) this.eliminate(target, zone.owner);
@@ -815,7 +921,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private applyKatanaStrike(attacker: Combatant, target: Combatant, impactX: number, impactY: number): void {
-    if (!attacker.alive || !target.alive || this.ending) return;
+    if (!attacker.alive || !target.alive || this.ending || !rivals(attacker, target)) return;
     const cuts = attacker.weapon.cutCount;
     const progression = attacker.weapon.registerHit();
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
@@ -836,7 +942,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private applyKatanaCut(attacker: Combatant, target: Combatant): void {
     if (!target.alive || this.ending) return;
     const damage = KATANA.cutDamage * (this.suddenDeath ? 2 : 1);
-    const applied = target.damage(damage);
+    const applied = this.dealDamage(attacker, target, damage);
     const slashAngle = this.random.between(-1.2, 1.2);
     const slash = this.add.graphics().setPosition(target.x, target.y).setRotation(slashAngle).setDepth(18);
     slash.lineStyle(4, 0xff6cb4, 0.95).beginPath().moveTo(-25, 0).lineTo(25, 0).strokePath();
@@ -853,7 +959,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private applyTurretDamage(owner: Combatant, target: Combatant, baseDamage: number, impactX: number, impactY: number): void {
     if (!target.alive || this.ending) return;
     const damage = baseDamage * (this.suddenDeath ? 2 : 1);
-    const applied = target.damage(damage);
+    const applied = this.dealDamage(owner, target, damage);
     const angle = Math.atan2(target.y - impactY, target.x - impactX);
     this.addVelocity(target, angle, 0.75);
     this.audio.impact(0.45);
@@ -876,13 +982,13 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private applyDamage(attacker: Combatant, target: Combatant, baseDamage: number, knockback: number, impactX: number, impactY: number, registerProgress = true): void {
     if (!attacker.alive || !target.alive || this.ending) return;
     const damage = baseDamage * (this.suddenDeath ? 2 : 1);
-    const applied = target.damage(damage);
+    const applied = this.dealDamage(attacker, target, damage);
     if (applied <= 0) return;
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
     this.addVelocity(target, angle, knockback);
     const progression = registerProgress ? attacker.weapon.registerHit() : attacker.weapon.progressionText;
     if (registerProgress && attacker.selection.weapon === 'wrench') this.spawnTurret(attacker);
-    if (registerProgress && canCreateClone(attacker)) this.spawnClone(attacker, target);
+    if (registerProgress && canCreateClone(attacker, target)) this.spawnClone(attacker, target);
     if (registerProgress && attacker.selection.weapon === 'scepter') attacker.heal(attacker.weapon.healthGain, true);
     this.audio.impact(Math.min(3, damage / 7));
     this.spark(impactX, impactY, attacker.visualColor, 9);
@@ -897,7 +1003,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private spawnClone(source: Combatant, target: Combatant): void {
-    if (!canCreateClone(source)) return;
+    if (!canCreateClone(source, target) || !rivals(source, target)) return;
     const cloneNumber = (this.cloneCountsByOwner.get(source.id) ?? 0) + 1;
     this.cloneCountsByOwner.set(source.id, cloneNumber);
     const cloneHealth = cloneHealthForNumber(cloneNumber);
@@ -909,16 +1015,18 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const clone = new Combatant(
       this, cloneSelection, this.nextEntitySequence++, spawn.x, spawn.y, cloneHealth, spawn.angle,
       {
-        radius: cloneRadius, isClone: true, canClone: false, cloneOwnerId: source.id, generation: 1,
+        team: source.team, radius: cloneRadius, isClone: true, canClone: false, cloneOwnerId: source.id, generation: 1,
         canDuplicate: target.selection.weapon === 'duplicator',
         visualSelection: cloneVisualSelection, visualWeaponType: 'grimoire',
       },
     );
+    this.ledger.summon(clone.id, source.id);
     clone.weapon.copyGameplayProgressFrom(target.weapon);
     const targetBody = target.orb.body as MatterJS.BodyType;
     const inheritedSpeed = Phaser.Math.Clamp(Math.hypot(targetBody.velocity.x, targetBody.velocity.y), ARENA.minSpeed, ARENA.maxSpeed);
     clone.orb.setVelocity(Math.cos(spawn.angle) * inheritedSpeed, Math.sin(spawn.angle) * inheritedSpeed);
     this.fighters.push(clone);
+    this.livingCache = null;
     if (clone.selection.weapon === 'joust') this.scheduleNextJoust(clone, this.time.now);
     if (clone.canDuplicate) this.scheduleNextDuplicate(clone, this.time.now);
     this.spark(clone.x, clone.y, source.visualColor, 12);
@@ -930,13 +1038,14 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const inset = this.arenaInset + cloneRadius + 3;
     const baseAngle = (cloneNumber * 2.39996) % (Math.PI * 2);
     let best = { x: source.x, y: source.y, angle: baseAngle, clearance: -Infinity };
+    const occupants = this.spawnOccupants();
     for (let ring = 0; ring < 3; ring += 1) {
       const distance = source.radius + cloneRadius + 14 + ring * 18;
       for (let step = 0; step < 16; step += 1) {
         const angle = baseAngle + step * Math.PI * 2 / 16;
         const x = Phaser.Math.Clamp(source.x + Math.cos(angle) * distance, inset, this.arenaSize - inset);
         const y = Phaser.Math.Clamp(source.y + Math.sin(angle) * distance, inset, this.arenaSize - inset);
-        const clearance = this.aliveFighters().reduce((minimum, fighter) => {
+        const clearance = occupants.reduce((minimum, fighter) => {
           const required = cloneRadius + fighter.radius + 6;
           return Math.min(minimum, Phaser.Math.Distance.Between(x, y, fighter.x, fighter.y) - required);
         }, Infinity);
@@ -944,13 +1053,32 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         if (clearance >= 0) return { x, y, angle };
       }
     }
-    return { x: best.x, y: best.y, angle: best.angle };
+    return this.safeSpawnPosition(best, cloneRadius, occupants);
+  }
+
+  private spawnOccupants(): Occupant[] {
+    return [
+      ...this.aliveFighters(),
+      ...this.turrets.map((turret) => ({ x: turret.sprite.x, y: turret.sprite.y, radius: TURRET.radius })),
+    ];
+  }
+
+  private safeSpawnPosition(preferred: { x: number; y: number; angle: number }, radius: number, occupants = this.spawnOccupants()): { x: number; y: number; angle: number } {
+    const position = findFreePosition(preferred, radius, this.arenaInset, this.arenaSize, occupants);
+    if (position) return position;
+    // A completely occupied arena needs an explicit gameplay decision (queue/cap/etc.).
+    // Until approved, retain the pre-existing generation instead of silently discarding it.
+    if (!this.spawnSpaceWarning) {
+      this.spawnSpaceWarning = true;
+      gameEvents.emit('battle:event', { kind: 'warning', title: 'ARENA SIN ESPACIO LIBRE', detail: 'La ocupación supera el espacio disponible para invocaciones sólidas.' });
+    }
+    return preferred;
   }
 
   private applyReflectedDamage(defender: Combatant, attacker: Combatant, baseDamage: number, impactX: number, impactY: number): void {
-    if (!defender.alive || this.ending) return;
+    if (!defender.alive || this.ending || !rivals(defender, attacker)) return;
     const damage = baseDamage * (this.suddenDeath ? 2 : 1);
-    const applied = attacker.alive ? attacker.damage(damage) : 0;
+    const applied = attacker.alive ? this.dealDamage(defender, attacker, damage) : 0;
     if (attacker.alive) {
       const angle = Math.atan2(attacker.y - defender.y, attacker.x - defender.x);
       this.addVelocity(attacker, angle, 1.4);
@@ -981,7 +1109,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     });
     this.spark(projectile.x, projectile.y, 0xff8a45, 18);
     for (const target of this.aliveFighters()) {
-      if (target === projectile.owner) continue;
+      if (!rivals(projectile.owner, target)) continue;
       const hitRadius = radius + target.radius;
       if (Phaser.Math.Distance.Squared(projectile.x, projectile.y, target.x, target.y) > hitRadius ** 2) continue;
       this.applyDamage(projectile.owner, target, projectile.damage, 1.05, projectile.x, projectile.y);
@@ -1012,7 +1140,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       if (now < effect.nextTickAt) continue;
       effect.nextTickAt = now + 1_000;
       const damage = target.poisonStacks * (this.suddenDeath ? 2 : 1);
-      const applied = target.damage(damage);
+      const applied = this.dealDamage(effect.source, target, damage);
       this.audio.impact(Math.min(2, damage / 6));
       this.spark(target.x, target.y, 0x91e34f, 6);
       this.floatText(target.x, target.y - 30, `☠ −${Math.round(applied)}`, '#b8ff7c');
@@ -1028,6 +1156,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private eliminate(target: Combatant, attacker: Combatant): void {
+    if (!target.alive) return;
+    this.ledger.eliminate(attacker.id, target.id);
     const duplicates = target.canDuplicate
       ? linkedDuplicates(this.aliveFighters(), target.id)
       : [];
@@ -1040,11 +1170,9 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.destroyCombatant(target);
     const survivors = this.aliveFighters();
     const contenderIds = livingContenderIds(survivors);
-    const battleEnded = contenderIds.size === 1 && survivors.length > 0;
+    const battleEnded = this.battleConfig.mode !== 'teams' && contenderIds.size === 1 && survivors.length > 0;
     if (battleEnded) {
       this.ending = true;
-      this.matter.world.engine.timing.timeScale = 0.2;
-      this.time.timeScale = 0.35;
       this.tweens.timeScale = 0.45;
     }
     this.audio.elimination();
@@ -1060,13 +1188,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.emitHud(true);
     if (!battleEnded) return;
     const winner = survivors.find((fighter) => !fighter.duplicateOwnerId) ?? survivors[0] as Combatant;
-    window.setTimeout(() => {
-      this.matter.world.engine.timing.timeScale = this.simulationSpeed;
-      this.time.timeScale = this.simulationSpeed;
-      this.tweens.timeScale = this.simulationSpeed;
-      this.audio.victory();
-      gameEvents.emit('battle:ended', { winner: winner.hudState(), weapon: winner.selection.weapon, seed: this.battleConfig.seed });
-    }, 850);
+    this.pendingWinner = winner;
+    this.victoryDelay = 850;
   }
 
   private destroyCombatant(target: Combatant): void {
@@ -1082,10 +1205,20 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.lastBounceHealAt.delete(target.id);
     this.cooldowns.clearFor(target.id);
     target.eliminate();
+    this.livingCache = null;
     if (target.isClone) this.fighters = this.fighters.filter((fighter) => fighter !== target);
   }
 
   private onCollisionStart(event: CollisionEvent): void {
+    // Copy pair references: never create, resize or remove bodies inside Matter's solver.
+    for (const pair of event.pairs) this.collisionPairs.push({
+      bodyA: pair.bodyA, bodyB: pair.bodyB,
+      velocityA: { x: pair.bodyA.velocity.x, y: pair.bodyA.velocity.y },
+      velocityB: { x: pair.bodyB.velocity.x, y: pair.bodyB.velocity.y },
+    });
+  }
+
+  private processCollisions(event: CollisionEvent): void {
     if (this.ending) return;
     for (const pair of event.pairs) {
       this.stopJoustOnObstacle(pair.bodyA, pair.bodyB);
@@ -1094,13 +1227,15 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       this.registerCrossoverTurretBounce(pair.bodyB, pair.bodyA);
       const first = this.fighters.find((candidate) => candidate.id === pair.bodyA.label && candidate.alive);
       const second = this.fighters.find((candidate) => candidate.id === pair.bodyB.label && candidate.alive);
-      if (first && second) {
-        this.applyUnarmedImpact(first, second, pair.bodyA);
-        this.applyUnarmedImpact(second, first, pair.bodyB);
+      if (first && second && rivals(first, second)) {
+        this.applyUnarmedImpact(first, second, { velocity: pair.velocityA ?? pair.bodyA.velocity });
+        this.applyUnarmedImpact(second, first, { velocity: pair.velocityB ?? pair.bodyB.velocity });
         this.applyCrusherImpact(first, second);
         this.applyCrusherImpact(second, first);
         this.applyGiantImpact(first, second);
         this.applyGiantImpact(second, first);
+        this.applyShieldImpact(first, second);
+        this.applyShieldImpact(second, first);
       }
       if (!this.bounceHealing) continue;
       for (const body of [pair.bodyA, pair.bodyB]) {
@@ -1146,7 +1281,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (fighter) this.stopJoustCharge(fighter);
   }
 
-  private applyUnarmedImpact(attacker: Combatant, target: Combatant, body: MatterJS.BodyType): void {
+  private applyUnarmedImpact(attacker: Combatant, target: Combatant, body: { velocity: { x: number; y: number } }): void {
     if (attacker.selection.weapon !== 'unarmed' || !attacker.alive || !target.alive) return;
     if (!this.cooldowns.canTrigger(`impact-${attacker.id}`, target.id, this.time.now, UNARMED.hitCooldownMs)) return;
     const speed = Math.hypot(body.velocity.x, body.velocity.y);
@@ -1158,6 +1293,12 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (attacker.selection.weapon !== 'crusher' || !attacker.alive || !target.alive) return;
     if (!this.cooldowns.canTrigger(`crusher-${attacker.id}`, target.id, this.time.now, CROSSOVER.bodyHitCooldownMs)) return;
     this.applyDamage(attacker, target, attacker.weapon.damage, 1.45, target.x, target.y, false);
+  }
+
+  private applyShieldImpact(attacker: Combatant, target: Combatant): void {
+    if (attacker.selection.weapon !== 'shield' || !attacker.alive || !target.alive) return;
+    if (!this.cooldowns.canTrigger(`shield-impact-${attacker.id}`, target.id, this.time.now, ARENA.weaponHitCooldownMs)) return;
+    this.applyDamage(attacker, target, attacker.weapon.damage, 1.05, target.x, target.y, false);
   }
 
   private applyGiantImpact(attacker: Combatant, target: Combatant): void {
@@ -1212,48 +1353,57 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private nearestRival(fighter: Combatant): Combatant | undefined {
-    return this.aliveFighters()
-      .filter((candidate) => candidate !== fighter)
-      .sort((first, second) =>
-        Phaser.Math.Distance.Squared(fighter.x, fighter.y, first.x, first.y)
-        - Phaser.Math.Distance.Squared(fighter.x, fighter.y, second.x, second.y),
-      )[0];
+    return nearestTarget(fighter, this.aliveFighters(), candidate => rivals(fighter, candidate));
+  }
+
+  private dealDamage(source: Combatant, target: Combatant, amount: number): number {
+    if (this.ending || !rivals(source, target)) return 0;
+    const applied = target.damage(amount);
+    this.ledger.hit(source.id, target.id, applied);
+    return applied;
+  }
+
+  skipFinalMoment(): void {
+    if (this.victoryDelay !== null) this.victoryDelay = 0;
+  }
+
+  private sendResult(winner: Combatant | null): void {
+    if (this.resultSent) return;
+    this.resultSent = true;
+    const result: BattleResult = { seed: this.battleConfig.seed, winner: winner?.hudState() ?? null,
+      winnerPrincipalId: winner ? this.ledger.principalId(winner.id) : undefined,
+      weapon: winner?.selection.weapon ?? null, team: winner?.team,
+      durationMs: this.time.now - this.startedAt,
+      reports: this.ledger.snapshot(new Map(this.fighters.filter(f => !f.isClone).map(f => [f.id, f.alive ? f.health : 0]))) };
+    gameEvents.emit('battle:ended', result);
+  }
+
+  private checkTeamVictory(): void {
+    if (this.ending) return;
+    const teams = survivingTeams(this.fighters);
+    if (teams.length > 1) return;
+    this.ending = true;
+    const winner = this.fighters.find(f => !f.isClone && f.alive && f.team === teams[0]);
+    if (!winner) { this.sendResult(null); return; }
+    this.pendingWinner = winner;
+    this.victoryDelay = 850;
   }
 
   private aliveFighters(): Combatant[] {
-    return this.fighters.filter((fighter) => fighter.alive);
+    return this.livingCache ??= this.fighters.filter((fighter) => fighter.alive);
   }
 
-  private emitHud(force = false): void {
-    if (!force && this.time.now < this.nextHudAt) return;
+  private emitHud(_force = false): void {
+    if (this.time.now < this.nextHudAt) return;
     this.nextHudAt = this.time.now + 100;
     gameEvents.emit('battle:hud', this.fighters.map((fighter) => fighter.hudState()));
   }
 
   private floatText(x: number, y: number, text: string, color: string, compact = false): void {
-    const label = this.add.text(x, y, text, {
-      fontFamily: 'ui-monospace, monospace', fontSize: compact ? '11px' : '17px', fontStyle: 'bold', color,
-      stroke: '#080a10', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(20);
-    this.tweens.add({ targets: label, y: y - 38, alpha: 0, duration: compact ? 700 : 520, ease: 'Cubic.easeOut', onComplete: () => label.destroy() });
+    this.effects.floatText(x, y, text, color, compact);
   }
 
   private spark(x: number, y: number, color: number, count: number): void {
-    if (!this.particlesEnabled) return;
-    for (let index = 0; index < count; index += 1) {
-      const angle = this.random.between(0, Math.PI * 2);
-      const distance = this.random.between(20, 65);
-      const particle = this.add.circle(x, y, this.random.between(1.5, 3.5), color, 0.9).setDepth(19);
-      this.tweens.add({
-        targets: particle,
-        x: x + Math.cos(angle) * distance,
-        y: y + Math.sin(angle) * distance,
-        alpha: 0,
-        scale: 0.2,
-        duration: this.random.between(220, 520),
-        ease: 'Quad.easeOut',
-        onComplete: () => particle.destroy(),
-      });
-    }
+    this.effects.spark(x, y, color, count, this.particlesEnabled);
   }
 }

@@ -12,6 +12,7 @@ export const COLLISION = {
 } as const;
 
 export interface CombatantOptions {
+  team?: 'A' | 'B';
   radius?: number;
   isClone?: boolean;
   canClone?: boolean;
@@ -24,6 +25,7 @@ export interface CombatantOptions {
 }
 
 export class Combatant {
+  readonly team?: 'A' | 'B';
   readonly id: string;
   readonly orb: Phaser.Physics.Matter.Image;
   readonly weapon: OrbitWeapon;
@@ -44,6 +46,7 @@ export class Combatant {
   private invulnerable = false;
   private readonly ring: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
+  private ringRadius = -1;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -56,6 +59,7 @@ export class Combatant {
     options: CombatantOptions = {},
   ) {
     this.id = `fighter-${index}`;
+    this.team = options.team ?? selection.team;
     this.selection = selection;
     this.maxHealth = Math.max(1, maxHealth);
     this.health = this.maxHealth;
@@ -93,16 +97,26 @@ export class Combatant {
   get visualColor(): number { return this.visualSelection.color; }
   get visualColorCss(): string { return this.visualSelection.colorCss; }
 
-  update(deltaSeconds: number, spinDirection: number, globalSpeed: number): void {
+  update(deltaSeconds: number, spinDirection: number, globalSpeed: number, render = true): void {
     if (!this.alive) return;
-    this.weapon.update(deltaSeconds, spinDirection);
+    this.weapon.update(deltaSeconds, spinDirection, false);
     if (this.selection.weapon === 'unarmed') {
       this.orb.applyForce(new Phaser.Math.Vector2(0, UNARMED.gravityForce));
     }
     this.keepMoving(globalSpeed);
-    this.ring.clear()
-      .lineStyle(2, 0xffffff, 0.25).strokeCircle(this.x, this.y, Math.max(4, this.radius - 4))
-      .lineStyle(2, this.visualColor, 0.55).strokeCircle(this.x, this.y, this.radius + 4);
+    if (render) this.render();
+  }
+
+  render(): void {
+    if (!this.alive) return;
+    this.weapon.render();
+    if (this.ringRadius !== this.radius) {
+      this.ring.clear()
+        .lineStyle(2, 0xffffff, 0.25).strokeCircle(0, 0, Math.max(4, this.radius - 4))
+        .lineStyle(2, this.visualColor, 0.55).strokeCircle(0, 0, this.radius + 4);
+      this.ringRadius = this.radius;
+    }
+    this.ring.setPosition(this.x, this.y);
     this.label.setPosition(this.x, this.y);
   }
 
@@ -154,6 +168,7 @@ export class Combatant {
     const definition = WEAPONS[this.selection.weapon];
     return {
       id: this.id,
+      team: this.team,
       name: this.displayName,
       weaponName: this.duplicateOwnerId ? `Copia · ${definition.name}` : this.isClone ? `Clon · ${definition.name}` : definition.name,
       ability: definition.ability,

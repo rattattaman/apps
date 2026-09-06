@@ -3,6 +3,7 @@ export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield'
 export type WeaponType = typeof WEAPON_TYPES[number];
 
 export interface FighterSelection {
+  team?: 'A' | 'B';
   name: string;
   weapon: WeaponType;
   color: number;
@@ -11,10 +12,33 @@ export interface FighterSelection {
 }
 
 export interface BattleConfig {
+  mode?: 'ffa' | 'teams';
   seed: string;
   startingHealth: number;
   chaosMode: boolean;
   fighters: FighterSelection[];
+}
+
+export interface CombatReport {
+  id: string;
+  name: string;
+  weapon: WeaponType;
+  team?: 'A' | 'B';
+  damage: number;
+  principalDamage: number;
+  eliminations: number;
+  summonsDestroyed: number;
+  health: number;
+}
+
+export interface BattleResult {
+  winnerPrincipalId?: string;
+  seed: string;
+  winner: import('./events').FighterHudState | null;
+  weapon: WeaponType | null;
+  team?: 'A' | 'B';
+  durationMs: number;
+  reports: CombatReport[];
 }
 
 export interface WeaponDefinition {
