@@ -52,6 +52,7 @@ export class OrbitWeapon {
       sizeLevel: definition.initialSizeLevel ?? 0,
       laserCooldownMs: definition.initialLaserCooldownMs ?? 900,
       lynaOrbCount: definition.initialLynaOrbCount ?? 0,
+      bombCount: definition.initialBombCount ?? 1,
     };
     this.graphics = this.scene.add.graphics().setDepth(5);
     this.satelliteGraphics = this.scene.add.graphics().setDepth(6);
@@ -74,6 +75,7 @@ export class OrbitWeapon {
   get sizeLevel(): number { return this.progress.sizeLevel ?? 0; }
   get laserCooldownMs(): number { return this.progress.laserCooldownMs ?? 900; }
   get lynaOrbCount(): number { return this.progress.lynaOrbCount ?? 0; }
+  get bombCount(): number { return this.progress.bombCount ?? 1; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
@@ -195,7 +197,7 @@ export class OrbitWeapon {
     this.drawLynaOrbs();
     const type = this.owner.visualWeaponType;
     const definition = WEAPONS[type];
-    if (type === 'unarmed' || type === 'crusher' || type === 'orbit' || type === 'giant' || type === 'laser' || type === 'lyna' || type === 'duplicator') {
+    if (type === 'unarmed' || type === 'crusher' || type === 'orbit' || type === 'giant' || type === 'laser' || type === 'lyna' || type === 'duplicator' || type === 'exploder' || type === 'fast') {
       return;
     }
     if (type === 'shield') {

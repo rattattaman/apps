@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arenaSizeForFighterCount, CROSSOVER_FIGHTERS, fireballExplosionRadius, SEASON_ONE_FIGHTERS, SEASON_TWO_FIGHTERS, shieldWidthForSize, UNARMED, WEAPONS } from './balance';
+import { arenaSizeForFighterCount, BOMB, CROSSOVER, CROSSOVER_FIGHTERS, fireballExplosionRadius, SEASON_ONE_FIGHTERS, SEASON_TWO_FIGHTERS, shieldWidthForSize, UNARMED, WEAPONS } from './balance';
 
 describe('arenaSizeForFighterCount', () => {
   it('concentra la arena cuando participan menos orbes', () => {
@@ -46,7 +46,7 @@ describe('arenaSizeForFighterCount', () => {
   });
 
   it('abre Crossover con Aplastador y Órbita', () => {
-    expect(CROSSOVER_FIGHTERS).toHaveLength(6);
+    expect(CROSSOVER_FIGHTERS).toHaveLength(8);
     expect(CROSSOVER_FIGHTERS.every((fighter) => fighter.season === 'Crossover')).toBe(true);
     expect(WEAPONS.crusher.damage).toBe(1);
     expect(WEAPONS.orbit.initialSatelliteCount).toBe(0);
@@ -56,6 +56,11 @@ describe('arenaSizeForFighterCount', () => {
     expect(WEAPONS.laser.range).toBe(0);
     expect(WEAPONS.lyna.initialLynaOrbCount).toBe(0);
     expect(WEAPONS.duplicator.damage).toBe(0);
+    expect(WEAPONS.exploder.initialBombCount).toBe(1);
+    expect(BOMB.dropIntervalMs).toBe(5_000);
+    expect(BOMB.gravityForce).toBeGreaterThan(0);
+    expect(WEAPONS.fast.initialMaxSpeed).toBe(8.8);
+    expect(CROSSOVER.fastSpeedGrowth).toBeGreaterThan(0);
   });
 });
 

@@ -73,6 +73,15 @@ export const SHURIKEN = { fireIntervalMs: 1_450 } as const;
 export const BOTTLE = { fireIntervalMs: 2_250, breakDistance: 235 } as const;
 export const SLIME = { radius: 72, lifetimeMs: 7_000, tickMs: 500, growthIntervalMs: 1_000, baseDps: 1, dpsGrowth: 0.2 } as const;
 export const HAMMER = { spinAcceleration: 0.85 } as const;
+export const BOMB = {
+  dropIntervalMs: 5_000,
+  radius: 10,
+  launchSpeed: 4.6,
+  gravityForce: 0.0002,
+  lifetimeMs: 9_000,
+  damage: 1,
+  explosionRadius: 62,
+} as const;
 export const CROSSOVER = {
   satelliteRadius: 7,
   satelliteOrbitDistance: 60,
@@ -86,6 +95,7 @@ export const CROSSOVER = {
   lynaMinimumAngularSpeed: 1.2,
   lynaMaximumAngularSpeed: 4.4,
   duplicateIntervalMs: 5_000,
+  fastSpeedGrowth: 0.65,
 } as const;
 
 export function fireballExplosionRadius(size: number): number {
@@ -193,6 +203,16 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'duplicator', name: 'Duplicador', glyph: '◉', color: 0xffd45a,
     ability: 'Crea copias periódicas; si muere el original, mueren todas', damage: 0, range: 0, angularSpeed: 0,
   },
+  exploder: {
+    type: 'exploder', name: 'Explotador', glyph: '✹', color: 0xff6b42,
+    ability: 'Suelta bombas cada 5 s; cada rebote añade otra a la próxima tanda', damage: 0, range: 0, angularSpeed: 0,
+    initialBombCount: 1,
+  },
+  fast: {
+    type: 'fast', name: 'Rápido', glyph: '➤', color: 0x45d9ff,
+    ability: 'Sin arma; cada rebote contra una pared o torreta aumenta su velocidad', damage: 0, range: 0, angularSpeed: 0,
+    initialMaxSpeed: ARENA.maxSpeed,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -224,6 +244,8 @@ export const CROSSOVER_FIGHTERS: FighterSelection[] = [
   { name: 'LASER', weapon: 'laser', color: 0xff5a70, colorCss: '#ff5a70', season: 'Crossover' },
   { name: 'LYNA', weapon: 'lyna', color: 0x78f0c4, colorCss: '#78f0c4', season: 'Crossover' },
   { name: 'DUPLI', weapon: 'duplicator', color: 0xffd45a, colorCss: '#ffd45a', season: 'Crossover' },
+  { name: 'BOOM', weapon: 'exploder', color: 0xff6b42, colorCss: '#ff6b42', season: 'Crossover' },
+  { name: 'RÁPIDO', weapon: 'fast', color: 0x45d9ff, colorCss: '#45d9ff', season: 'Crossover' },
 ];
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS, ...CROSSOVER_FIGHTERS];

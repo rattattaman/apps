@@ -1,4 +1,4 @@
-export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield', 'scythe', 'unarmed', 'wrench', 'katana', 'joust', 'shuriken', 'grimoire', 'scepter', 'bottle', 'hammer', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'] as const;
+export const WEAPON_TYPES = ['sword', 'dagger', 'spear', 'bow', 'wand', 'shield', 'scythe', 'unarmed', 'wrench', 'katana', 'joust', 'shuriken', 'grimoire', 'scepter', 'bottle', 'hammer', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator', 'exploder', 'fast'] as const;
 
 export type WeaponType = typeof WEAPON_TYPES[number];
 
@@ -61,6 +61,7 @@ export interface WeaponDefinition {
   initialSizeLevel?: number;
   initialLaserCooldownMs?: number;
   initialLynaOrbCount?: number;
+  initialBombCount?: number;
   color: number;
   glyph: string;
 }

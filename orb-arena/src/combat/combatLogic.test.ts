@@ -105,6 +105,8 @@ describe('mecánicas de Crossover', () => {
     expect(progressAfterObstacleBounce('orbit', { ...base, satelliteCount: 2 })).toMatchObject({ satelliteCount: 3 });
     expect(progressAfterObstacleBounce('giant', { ...base, sizeLevel: 2 })).toMatchObject({ sizeLevel: 3 });
     expect(progressAfterObstacleBounce('lyna', { ...base, lynaOrbCount: 2 })).toMatchObject({ lynaOrbCount: 3 });
+    expect(progressAfterObstacleBounce('exploder', { ...base, bombCount: 3 })).toMatchObject({ bombCount: 4 });
+    expect(progressAfterObstacleBounce('fast', { ...base, maxSpeed: 8.8 }).maxSpeed).toBeCloseTo(9.45);
     expect(progressAfterObstacleBounce('sword', base)).toBe(base);
   });
 

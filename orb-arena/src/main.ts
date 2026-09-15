@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
-import { arenaSizeForFighterCount, DEFAULT_FIGHTERS, WEAPONS } from './config/balance';
+import { ARENA, arenaSizeForFighterCount, DEFAULT_FIGHTERS, WEAPONS } from './config/balance';
 import { gameEvents, type FighterHudState } from './events';
 import { BattleScene } from './scenes/BattleScene';
 import { loadStats, recordBattle } from './storage/stats';
@@ -169,6 +169,10 @@ function initialHud(config: BattleConfig): FighterHudState[] {
                                 ? `ORBITAS ×${WEAPONS.lyna.initialLynaOrbCount ?? 0}`
                                 : fighter.weapon === 'duplicator'
                                   ? 'COPIAS AUTOMÁTICAS'
+                                  : fighter.weapon === 'exploder'
+                                    ? `BOMBAS ×${WEAPONS.exploder.initialBombCount ?? 1}`
+                                    : fighter.weapon === 'fast'
+                                      ? `VEL. MÁX ${WEAPONS.fast.initialMaxSpeed ?? ARENA.maxSpeed}`
                   : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }

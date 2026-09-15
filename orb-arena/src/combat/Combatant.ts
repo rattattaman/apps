@@ -155,6 +155,16 @@ export class Combatant {
     return this.radius;
   }
 
+  increaseSpeed(amount: number): number {
+    if (!this.alive || amount <= 0) return 0;
+    const body = this.orb.body as MatterJS.BodyType;
+    const current = Math.hypot(body.velocity.x, body.velocity.y);
+    const next = current + amount;
+    const angle = current > 0.05 ? Math.atan2(body.velocity.y, body.velocity.x) : this.weapon.angle;
+    this.orb.setVelocity(Math.cos(angle) * next, Math.sin(angle) * next);
+    return next;
+  }
+
   eliminate(): void {
     if (!this.alive) return;
     this.alive = false;
@@ -192,7 +202,7 @@ export class Combatant {
       return;
     }
     const desiredMinimum = ARENA.minSpeed * globalSpeed;
-    const maximum = (this.isClone ? this.weapon.maxSpeed : ARENA.maxSpeed) * globalSpeed;
+    const maximum = (this.isClone || this.selection.weapon === 'fast' ? this.weapon.maxSpeed : ARENA.maxSpeed) * globalSpeed;
     const angle = speed > 0.08 ? Math.atan2(body.velocity.y, body.velocity.x) : this.weapon.angle;
     if (speed < desiredMinimum) {
       this.orb.setVelocity(Math.cos(angle) * desiredMinimum, Math.sin(angle) * desiredMinimum);

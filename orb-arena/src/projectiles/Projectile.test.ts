@@ -1,13 +1,16 @@
 import type Phaser from 'phaser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Combatant } from '../combat/Combatant';
-import { BOTTLE, FIREBALL, PROJECTILES } from '../config/balance';
+import { BOMB, BOTTLE, FIREBALL, PROJECTILES } from '../config/balance';
 import { Projectile, type ProjectileKind } from './Projectile';
 
 const { distanceBetween } = vi.hoisted(() => ({
   distanceBetween: vi.fn((x1: number, y1: number, x2: number, y2: number) => Math.hypot(x2 - x1, y2 - y1)),
 }));
-vi.mock('phaser', () => ({ default: { Math: { Distance: { Between: distanceBetween } } } }));
+vi.mock('phaser', () => ({ default: { Math: {
+  Distance: { Between: distanceBetween },
+  Vector2: class Vector2 { constructor(readonly x: number, readonly y: number) {} },
+} } }));
 
 function createProjectile(kind: ProjectileKind) {
   const sprite = {
@@ -20,6 +23,7 @@ function createProjectile(kind: ProjectileKind) {
     setVelocity: vi.fn(function (this: { body: { velocity: { x: number; y: number } } }, x: number, y: number) {
       this.body.velocity = { x, y }; return this;
     }),
+    applyForce: vi.fn().mockReturnThis(),
     destroy: vi.fn(),
   };
   const scene = { time: { now: 1000 }, matter: { add: { image: vi.fn(() => sprite) } } };
@@ -66,6 +70,16 @@ describe('recorrido y ciclo de vida de proyectiles', () => {
     expect(projectile.canBounce()).toBe(true);
     projectile.bounce();
     expect(projectile.canBounce()).toBe(false);
+  });
+
+  it('aplica gravedad propia a las bombas y usa sus valores de lanzamiento y vida', () => {
+    const { projectile, sprite } = createProjectile('bomb');
+    expect(sprite.body.velocity).toEqual({ x: BOMB.launchSpeed, y: 0 });
+    expect(projectile.hitRadius).toBe(BOMB.radius);
+    projectile.update(1016);
+    expect(sprite.applyForce).toHaveBeenCalledWith(expect.objectContaining({ x: 0, y: BOMB.gravityForce }));
+    projectile.update(projectile.bornAt + BOMB.lifetimeMs + 1);
+    expect(projectile.alive).toBe(false);
   });
 
   it('caduca en el mismo instante y destruye el objeto físico una sola vez', () => {

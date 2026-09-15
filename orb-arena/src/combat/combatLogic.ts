@@ -18,6 +18,7 @@ export interface WeaponProgress {
   sizeLevel?: number;
   laserCooldownMs?: number;
   lynaOrbCount?: number;
+  bombCount?: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -41,6 +42,8 @@ export function progressAfterObstacleBounce(type: WeaponType, current: WeaponPro
   if (type === 'orbit') return { ...current, satelliteCount: (current.satelliteCount ?? 0) + 1 };
   if (type === 'giant') return { ...current, sizeLevel: (current.sizeLevel ?? 0) + 1 };
   if (type === 'lyna') return { ...current, lynaOrbCount: (current.lynaOrbCount ?? 0) + 1 };
+  if (type === 'exploder') return { ...current, bombCount: (current.bombCount ?? 1) + 1 };
+  if (type === 'fast') return { ...current, maxSpeed: current.maxSpeed + CROSSOVER.fastSpeedGrowth };
   return current;
 }
 
@@ -73,7 +76,9 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
       ),
     };
     case 'lyna':
-    case 'duplicator': return current;
+    case 'duplicator':
+    case 'exploder':
+    case 'fast': return current;
   }
 }
 
@@ -101,6 +106,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'laser': return `RECARGA ${progress.laserCooldownMs ?? 900} MS`;
     case 'lyna': return `ORBITAS ×${progress.lynaOrbCount ?? 0}`;
     case 'duplicator': return 'COPIAS AUTOMÁTICAS';
+    case 'exploder': return `BOMBAS ×${progress.bombCount ?? 1}`;
+    case 'fast': return `VEL. MÁX ${format(progress.maxSpeed)}`;
   }
 }
 
