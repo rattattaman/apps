@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { describe, expect, it, vi } from 'vitest';
 import { ARENA } from '../config/balance';
 import { Combatant } from './Combatant';
+import type { WeaponType } from '../types';
 
 vi.mock('phaser', () => ({
   default: { Math: { Vector2: class { constructor(public x: number, public y: number) {} } } },
@@ -17,7 +18,7 @@ vi.mock('../weapons/OrbitWeapon', () => ({
   },
 }));
 
-function createCombatant(radius = ARENA.orbRadius as number) {
+function createCombatant(radius = ARENA.orbRadius as number, weapon: WeaponType = 'sword') {
   const orb = {
     x: 100, y: 150, scaleX: 1, scaleY: 1,
     body: { label: '', velocity: { x: 4, y: 0 } },
@@ -27,7 +28,9 @@ function createCombatant(radius = ARENA.orbRadius as number) {
     setScale: vi.fn(function (this: { scaleX: number; scaleY: number }, x: number, y = x) {
       this.scaleX = x; this.scaleY = y; return this;
     }),
-    setVelocity: vi.fn(), destroy: vi.fn(),
+    setVelocity: vi.fn(function (this: { body: { velocity: { x: number; y: number } } }, x: number, y: number) {
+      this.body.velocity = { x, y }; return this;
+    }), destroy: vi.fn(),
   };
   const ring = {
     x: 0, y: 0,
@@ -49,7 +52,7 @@ function createCombatant(radius = ARENA.orbRadius as number) {
     time: { delayedCall: vi.fn((_delay: number, callback: () => void) => callbacks.push(callback)) },
   };
   const fighter = new Combatant(scene as unknown as Phaser.Scene, {
-    name: 'SOL', weapon: 'sword', color: 0xffbf43, colorCss: '#ffbf43', season: 1,
+    name: 'SOL', weapon, color: 0xffbf43, colorCss: '#ffbf43', season: 1,
   }, 0, orb.x, orb.y, 100, 0, { radius });
   return { fighter, orb, ring, label, callbacks };
 }
@@ -104,5 +107,13 @@ describe('visual y ciclo de vida del combatiente', () => {
     expect(label.destroy).toHaveBeenCalledTimes(1);
     expect(fighter.weapon.destroy).toHaveBeenCalledTimes(1);
     expect(fighter.weapon.update).not.toHaveBeenCalled();
+  });
+
+  it('Rápido recupera inmediatamente toda su velocidad acumulada tras perder impulso', () => {
+    const { fighter, orb } = createCombatant(ARENA.orbRadius, 'fast');
+    (fighter.weapon as unknown as { maxSpeed: number }).maxSpeed = 10.1;
+    orb.body.velocity = { x: 3, y: 4 };
+    fighter.update(1 / 60, 1, 1);
+    expect(Math.hypot(orb.body.velocity.x, orb.body.velocity.y)).toBeCloseTo(10.1);
   });
 });

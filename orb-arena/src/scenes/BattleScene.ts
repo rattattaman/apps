@@ -1319,6 +1319,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.applyCrusherImpact(second, first);
         this.applyGiantImpact(first, second);
         this.applyGiantImpact(second, first);
+        this.applyFastImpact(first, second);
+        this.applyFastImpact(second, first);
         this.applyShieldImpact(first, second);
         this.applyShieldImpact(second, first);
       }
@@ -1391,6 +1393,12 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     if (attacker.selection.weapon !== 'giant' || !attacker.alive || !target.alive) return;
     if (!this.cooldowns.canTrigger(`giant-${attacker.id}`, target.id, this.time.now, CROSSOVER.bodyHitCooldownMs)) return;
     this.applyDamage(attacker, target, attacker.weapon.damage, 1.15, target.x, target.y, false);
+  }
+
+  private applyFastImpact(attacker: Combatant, target: Combatant): void {
+    if (attacker.selection.weapon !== 'fast' || !attacker.alive || !target.alive) return;
+    if (!this.cooldowns.canTrigger(`fast-${attacker.id}`, target.id, this.time.now, CROSSOVER.bodyHitCooldownMs)) return;
+    this.applyDamage(attacker, target, attacker.weapon.damage, 1.1, target.x, target.y, false);
   }
 
   private resolveWallContacts(): void {

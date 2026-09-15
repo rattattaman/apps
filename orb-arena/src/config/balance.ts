@@ -210,7 +210,7 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
   },
   fast: {
     type: 'fast', name: 'Rápido', glyph: '➤', color: 0x45d9ff,
-    ability: 'Sin arma; cada rebote contra una pared o torreta aumenta su velocidad', damage: 0, range: 0, angularSpeed: 0,
+    ability: 'Hace 1 de daño corporal; cada rebote aumenta y fija su velocidad', damage: 1, range: 0, angularSpeed: 0,
     initialMaxSpeed: ARENA.maxSpeed,
   },
 };

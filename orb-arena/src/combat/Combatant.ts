@@ -193,6 +193,14 @@ export class Combatant {
   private keepMoving(globalSpeed: number): void {
     const body = this.orb.body as MatterJS.BodyType;
     const speed = Math.hypot(body.velocity.x, body.velocity.y);
+    if (this.selection.weapon === 'fast') {
+      const maintainedSpeed = this.weapon.maxSpeed * globalSpeed;
+      const angle = speed > 0.08 ? Math.atan2(body.velocity.y, body.velocity.x) : this.weapon.angle;
+      if (Math.abs(speed - maintainedSpeed) > 0.01) {
+        this.orb.setVelocity(Math.cos(angle) * maintainedSpeed, Math.sin(angle) * maintainedSpeed);
+      }
+      return;
+    }
     if (this.selection.weapon === 'unarmed') {
       const maximum = this.weapon.maxSpeed * globalSpeed;
       if (speed > maximum) {
@@ -202,7 +210,7 @@ export class Combatant {
       return;
     }
     const desiredMinimum = ARENA.minSpeed * globalSpeed;
-    const maximum = (this.isClone || this.selection.weapon === 'fast' ? this.weapon.maxSpeed : ARENA.maxSpeed) * globalSpeed;
+    const maximum = (this.isClone ? this.weapon.maxSpeed : ARENA.maxSpeed) * globalSpeed;
     const angle = speed > 0.08 ? Math.atan2(body.velocity.y, body.velocity.x) : this.weapon.angle;
     if (speed < desiredMinimum) {
       this.orb.setVelocity(Math.cos(angle) * desiredMinimum, Math.sin(angle) * desiredMinimum);

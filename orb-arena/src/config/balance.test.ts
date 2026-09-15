@@ -60,6 +60,7 @@ describe('arenaSizeForFighterCount', () => {
     expect(BOMB.dropIntervalMs).toBe(5_000);
     expect(BOMB.gravityForce).toBeGreaterThan(0);
     expect(WEAPONS.fast.initialMaxSpeed).toBe(8.8);
+    expect(WEAPONS.fast.damage).toBe(1);
     expect(CROSSOVER.fastSpeedGrowth).toBeGreaterThan(0);
   });
 });

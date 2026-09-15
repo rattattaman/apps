@@ -68,3 +68,21 @@ it('difiere el daño hasta salir del solver y conserva la velocidad original del
   scene.processCollisions({ pairs: scene.collisionPairs.splice(0) });
   expect(scene.applyDamage).toHaveBeenCalledTimes(1);
 });
+
+it('Rápido hace un punto de daño corporal respetando la recarga de contacto', () => {
+  const scene = new BattleScene() as unknown as {
+    time: { now: number };
+    applyFastImpact(a: object, b: object): void;
+    applyDamage: ReturnType<typeof vi.fn>;
+  };
+  const fast = { id: 'f', alive: true, selection: { weapon: 'fast' }, weapon: { damage: 1 } };
+  const target = { id: 't', alive: true, x: 30, y: 40 };
+  scene.time = { now: 0 };
+  scene.applyDamage = vi.fn();
+  scene.applyFastImpact(fast, target);
+  scene.applyFastImpact(fast, target);
+  expect(scene.applyDamage).toHaveBeenCalledExactlyOnceWith(fast, target, 1, 1.1, 30, 40, false);
+  scene.time.now = 360;
+  scene.applyFastImpact(fast, target);
+  expect(scene.applyDamage).toHaveBeenCalledTimes(2);
+});
