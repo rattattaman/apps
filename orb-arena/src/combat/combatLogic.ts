@@ -1,5 +1,5 @@
 import type { WeaponType } from '../types';
-import { CROSSOVER } from '../config/balance';
+import { AXE, BOOMERANG, CROSSOVER } from '../config/balance';
 
 export interface WeaponProgress {
   damage: number;
@@ -19,6 +19,8 @@ export interface WeaponProgress {
   laserCooldownMs?: number;
   lynaOrbCount?: number;
   bombCount?: number;
+  criticalChance?: number;
+  criticalMultiplier?: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -35,6 +37,11 @@ export function advanceHammerSpin(current: number, maximum: number, acceleration
 
 export function growSlimeDps(current: number, hasEnemy: boolean, growth = 0.2): number {
   return hasEnemy ? current + growth : current;
+}
+
+export function axeStrikeDamage(baseDamage: number, criticalChance: number, criticalMultiplier: number, roll: number): { damage: number; critical: boolean } {
+  const critical = roll < Math.min(1, Math.max(0, criticalChance));
+  return { damage: critical ? baseDamage * criticalMultiplier : baseDamage, critical };
 }
 
 export function progressAfterObstacleBounce(type: WeaponType, current: WeaponProgress): WeaponProgress {
@@ -79,6 +86,12 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
     case 'duplicator':
     case 'exploder':
     case 'fast': return current;
+    case 'axe': return {
+      ...current,
+      criticalChance: Math.min(1, (current.criticalChance ?? AXE.initialCriticalChance) + AXE.growthPerHit),
+      criticalMultiplier: (current.criticalMultiplier ?? AXE.initialCriticalMultiplier) + AXE.growthPerHit,
+    };
+    case 'boomerang': return { ...current, damage: current.damage + BOOMERANG.damageGrowth };
   }
 }
 
@@ -108,11 +121,17 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'duplicator': return 'COPIAS AUTOMÁTICAS';
     case 'exploder': return `BOMBAS ×${progress.bombCount ?? 1}`;
     case 'fast': return `VEL. MÁX ${format(progress.maxSpeed)}`;
+    case 'axe': return `CRÍTICO ${formatPercent(progress.criticalChance ?? AXE.initialCriticalChance)} · DAÑO ×${format(progress.criticalMultiplier ?? AXE.initialCriticalMultiplier)}`;
+    case 'boomerang': return `DAÑO ${format(progress.damage)}`;
   }
 }
 
 function format(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatPercent(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }
 
 export class ContactCooldowns {

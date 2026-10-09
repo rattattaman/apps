@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
 import { SoundEngine } from '../audio/SoundEngine';
 import { COLLISION, Combatant } from '../combat/Combatant';
-import { burstShotDelays, ContactCooldowns, growSlimeDps } from '../combat/combatLogic';
+import { axeStrikeDamage, burstShotDelays, ContactCooldowns, growSlimeDps } from '../combat/combatLogic';
 import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from '../combat/cloneLogic';
 import { linkedDuplicates, livingContenderIds } from '../combat/duplicateLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, BOMB, BOTTLE, CHAOS, CROSSOVER, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, BOOMERANG, BOMB, BOTTLE, CHAOS, CROSSOVER, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
+import { Boomerang } from '../projectiles/Boomerang';
 import type { BattleConfig } from '../types';
 import { pointToSegmentDistanceSquared, segmentDistanceSquared } from '../utils/geometry';
 import { SeededRandom } from '../utils/seededRandom';
@@ -62,6 +63,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private resultSent = false;
   private fighters: Combatant[] = [];
   private projectiles: Projectile[] = [];
+  private boomerangs: Boomerang[] = [];
   private turrets: TurretState[] = [];
   private slimeZones: SlimeZone[] = [];
   private walls: MatterJS.BodyType[] = [];
@@ -178,6 +180,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   private stepCombat(time: number, deltaSeconds: number): void {
     if (this.ending) {
       this.updateProjectiles(time);
+      this.updateBoomerangs(time);
       return;
     }
     const elapsed = time - this.startedAt;
@@ -194,6 +197,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.updateParries(time);
     this.updateRangedWeapons(time);
     this.updateProjectiles(time);
+    this.updateBoomerangs(time);
     this.updateSlimeZones(time);
     this.updatePoison(time);
     this.chaosController?.update(elapsed);
@@ -317,6 +321,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.effects = new BattleEffects(this, this.random);
     this.fighters = [];
     this.projectiles = [];
+    this.boomerangs = [];
     this.turrets = [];
     this.slimeZones = [];
     this.walls = [];
@@ -407,6 +412,15 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         .lineStyle(3, 0xffc24a, 1).beginPath().moveTo(14, 3).lineTo(18, 0).strokePath()
         .fillStyle(0xffef91, 1).fillCircle(19, 1, 2);
       graphics.generateTexture('bomb', 28, 28);
+      graphics.destroy();
+    }
+    if (!this.textures.exists('boomerang')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      graphics.lineStyle(8, 0xe9fff8, 1).beginPath()
+        .moveTo(5, 5).lineTo(16, 15).lineTo(5, 26).strokePath()
+        .lineStyle(3, 0x55e6b2, 1).beginPath()
+        .moveTo(5, 5).lineTo(16, 15).lineTo(5, 26).strokePath();
+      graphics.generateTexture('boomerang', 30, 31);
       graphics.destroy();
     }
     if (!this.textures.exists('turret')) {
@@ -587,11 +601,17 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
           continue;
         }
         const charging = attacker.selection.weapon === 'joust' && this.joustCharging.has(attacker.id);
+        const axeStrike = attacker.selection.weapon === 'axe'
+          ? axeStrikeDamage(attacker.weapon.damage, attacker.weapon.criticalChance, attacker.weapon.criticalMultiplier, this.random.next())
+          : null;
+        const critical = axeStrike?.critical ?? false;
         const hitDamage = charging
           ? attacker.weapon.chargeDamage
-          : attacker.selection.weapon === 'hammer' ? attacker.weapon.angularSpeed : attacker.weapon.damage;
+          : attacker.selection.weapon === 'hammer' ? attacker.weapon.angularSpeed
+            : axeStrike?.damage ?? attacker.weapon.damage;
         const knockback = attacker.selection.weapon === 'spear' ? 2.5 : charging ? 2.8 : 1.05;
-        this.applyDamage(attacker, target, hitDamage, knockback, segment.end.x, segment.end.y, !charging);
+        const applied = this.applyDamage(attacker, target, hitDamage, knockback, segment.end.x, segment.end.y, !charging);
+        if (critical && applied > 0) this.floatText(target.x, target.y - 47, '¡CRÍTICO!', '#ffd27a', true);
         if (attacker.selection.weapon === 'scythe' && target.alive) this.applyPoison(attacker, target);
       }
     }
@@ -780,8 +800,8 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       for (let secondIndex = firstIndex + 1; secondIndex < alive.length; secondIndex += 1) {
         const second = alive[secondIndex] as Combatant;
         if (!rivals(first, second)) continue;
-        if (['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(first.selection.weapon)
-          || ['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator'].includes(second.selection.weapon)) continue;
+        if (['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator', 'exploder', 'fast'].includes(first.selection.weapon)
+          || ['shield', 'unarmed', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator', 'exploder', 'fast'].includes(second.selection.weapon)) continue;
         if (segmentDistanceSquared(first.weapon.segment(), second.weapon.segment()) > 100) continue;
         if (!this.cooldowns.canTrigger(`parry-${first.id}`, second.id, now, ARENA.parryCooldownMs)) continue;
         const firstProgress = first.weapon.parry();
@@ -801,7 +821,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private updateRangedWeapons(now: number): void {
     for (const fighter of this.aliveFighters()) {
-      if (!['bow', 'wand', 'shuriken', 'bottle'].includes(fighter.selection.weapon)) continue;
+      if (!['bow', 'wand', 'shuriken', 'bottle', 'boomerang'].includes(fighter.selection.weapon)) continue;
       if (now < (this.nextShotAt.get(fighter.id) ?? 0)) continue;
       const target = this.nearestRival(fighter);
       if (!target) continue;
@@ -809,6 +829,14 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const alignment = Math.abs(Phaser.Math.Angle.Wrap(fighter.weapon.angle - targetAngle));
       if (alignment > 0.42) {
         this.nextShotAt.set(fighter.id, now + 90);
+        continue;
+      }
+      if (fighter.selection.weapon === 'boomerang') {
+        this.nextShotAt.set(fighter.id, now + BOOMERANG.fireIntervalMs);
+        this.boomerangs.push(new Boomerang(
+          this, fighter, fighter.weapon.angle, fighter.weapon.direction, this.projectileSequence++,
+        ));
+        this.audio.shot();
         continue;
       }
       if (fighter.selection.weapon === 'wand') {
@@ -934,6 +962,24 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.projectiles = this.projectiles.filter((projectile) => projectile.alive);
   }
 
+  private updateBoomerangs(now: number): void {
+    for (const boomerang of this.boomerangs) {
+      boomerang.update(now);
+      if (!boomerang.alive) continue;
+      for (const target of this.aliveFighters()) {
+        if (!rivals(boomerang.owner, target) || !boomerang.canHit(target.id)) continue;
+        const hitRadius = target.radius + boomerang.hitRadius;
+        if (Phaser.Math.Distance.Squared(boomerang.x, boomerang.y, target.x, target.y) > hitRadius ** 2) continue;
+        boomerang.registerHit(target.id);
+        this.applyDamage(
+          boomerang.owner, target, boomerang.owner.weapon.damage, 0.9, boomerang.x, boomerang.y,
+        );
+        if (this.ending) break;
+      }
+    }
+    this.boomerangs = this.boomerangs.filter((boomerang) => boomerang.alive);
+  }
+
   private spawnSlime(owner: Combatant, x: number, y: number): void {
     const inset = this.arenaInset + SLIME.radius;
     const safeX = Phaser.Math.Clamp(x, inset, this.arenaSize - inset);
@@ -1046,11 +1092,11 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.emitHud(true);
   }
 
-  private applyDamage(attacker: Combatant, target: Combatant, baseDamage: number, knockback: number, impactX: number, impactY: number, registerProgress = true): void {
-    if (!attacker.alive || !target.alive || this.ending) return;
+  private applyDamage(attacker: Combatant, target: Combatant, baseDamage: number, knockback: number, impactX: number, impactY: number, registerProgress = true): number {
+    if (!attacker.alive || !target.alive || this.ending) return 0;
     const damage = baseDamage * (this.suddenDeath ? 2 : 1);
     const applied = this.dealDamage(attacker, target, damage);
-    if (applied <= 0) return;
+    if (applied <= 0) return 0;
     const angle = Math.atan2(target.y - attacker.y, target.x - attacker.x);
     this.addVelocity(target, angle, knockback);
     const progression = registerProgress ? attacker.weapon.registerHit() : attacker.weapon.progressionText;
@@ -1067,6 +1113,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     });
     this.emitHud(true);
     if (target.health <= 0) this.eliminate(target, attacker);
+    return applied;
   }
 
   private spawnClone(source: Combatant, target: Combatant): void {

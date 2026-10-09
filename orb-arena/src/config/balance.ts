@@ -82,6 +82,19 @@ export const BOMB = {
   damage: 1,
   explosionRadius: 62,
 } as const;
+export const AXE = {
+  initialCriticalChance: 0.1,
+  initialCriticalMultiplier: 2,
+  growthPerHit: 0.03,
+} as const;
+export const BOOMERANG = {
+  fireIntervalMs: 2_300,
+  flightDurationMs: 1_350,
+  orbitShare: 0.72,
+  orbitDistance: 92,
+  radius: 12,
+  damageGrowth: 2,
+} as const;
 export const CROSSOVER = {
   satelliteRadius: 7,
   satelliteOrbitDistance: 60,
@@ -213,6 +226,15 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     ability: 'Hace 1 de daño corporal; cada rebote aumenta y fija su velocidad', damage: 1, range: 0, angularSpeed: 0,
     initialMaxSpeed: ARENA.maxSpeed,
   },
+  axe: {
+    type: 'axe', name: 'Hacha', glyph: '◒', color: 0xff795d,
+    ability: 'Cada golpe suma +3% de probabilidad y daño crítico', damage: 1, range: 60, angularSpeed: 3.05,
+    initialCriticalChance: AXE.initialCriticalChance, initialCriticalMultiplier: AXE.initialCriticalMultiplier,
+  },
+  boomerang: {
+    type: 'boomerang', name: 'Boomerang', glyph: '⌁', color: 0x55e6b2,
+    ability: 'Recorre medio círculo y vuelve; cada impacto suma +2 de daño', damage: 1, range: 58, angularSpeed: 3.15,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -248,4 +270,9 @@ export const CROSSOVER_FIGHTERS: FighterSelection[] = [
   { name: 'RÁPIDO', weapon: 'fast', color: 0x45d9ff, colorCss: '#45d9ff', season: 'Crossover' },
 ];
 
-export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS, ...CROSSOVER_FIGHTERS];
+export const SEASON_THREE_FIGHTERS: FighterSelection[] = [
+  { name: 'AXIS', weapon: 'axe', color: 0xff795d, colorCss: '#ff795d', season: 3 },
+  { name: 'BUMER', weapon: 'boomerang', color: 0x55e6b2, colorCss: '#55e6b2', season: 3 },
+];
+
+export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS, ...CROSSOVER_FIGHTERS, ...SEASON_THREE_FIGHTERS];

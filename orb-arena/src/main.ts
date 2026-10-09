@@ -173,6 +173,10 @@ function initialHud(config: BattleConfig): FighterHudState[] {
                                     ? `BOMBAS ×${WEAPONS.exploder.initialBombCount ?? 1}`
                                     : fighter.weapon === 'fast'
                                       ? `VEL. MÁX ${WEAPONS.fast.initialMaxSpeed ?? ARENA.maxSpeed}`
+                                      : fighter.weapon === 'axe'
+                                        ? `CRÍTICO ${Math.round((WEAPONS.axe.initialCriticalChance ?? 0.1) * 100)}% · DAÑO ×${WEAPONS.axe.initialCriticalMultiplier ?? 2}`
+                                        : fighter.weapon === 'boomerang'
+                                          ? `DAÑO ${WEAPONS.boomerang.damage}`
                   : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }

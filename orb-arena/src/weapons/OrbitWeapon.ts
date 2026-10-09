@@ -53,6 +53,8 @@ export class OrbitWeapon {
       laserCooldownMs: definition.initialLaserCooldownMs ?? 900,
       lynaOrbCount: definition.initialLynaOrbCount ?? 0,
       bombCount: definition.initialBombCount ?? 1,
+      criticalChance: definition.initialCriticalChance ?? 0,
+      criticalMultiplier: definition.initialCriticalMultiplier ?? 1,
     };
     this.graphics = this.scene.add.graphics().setDepth(5);
     this.satelliteGraphics = this.scene.add.graphics().setDepth(6);
@@ -76,6 +78,8 @@ export class OrbitWeapon {
   get laserCooldownMs(): number { return this.progress.laserCooldownMs ?? 900; }
   get lynaOrbCount(): number { return this.progress.lynaOrbCount ?? 0; }
   get bombCount(): number { return this.progress.bombCount ?? 1; }
+  get criticalChance(): number { return this.progress.criticalChance ?? 0; }
+  get criticalMultiplier(): number { return this.progress.criticalMultiplier ?? 1; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
@@ -310,6 +314,22 @@ export class OrbitWeapon {
         .fillStyle(0x526676, 1).fillRoundedRect(headX, -17, 30, 34, 4)
         .lineStyle(3, definition.color, 1).strokeRoundedRect(headX, -17, 30, 34, 4)
         .lineStyle(2, 0xdff4ff, 0.8).beginPath().moveTo(headX + 5, -12).lineTo(headX + 24, -12).strokePath();
+      return;
+    }
+    if (type === 'axe') {
+      const headX = length - 15;
+      this.graphics.lineStyle(7, 0x855a3a, 1).beginPath().moveTo(0, 0).lineTo(length, 0).strokePath()
+        .lineStyle(2, 0xffd1a8, 0.75).beginPath().moveTo(4, -2).lineTo(length - 5, -2).strokePath()
+        .fillStyle(0x667483, 1).fillTriangle(headX, -20, length + 8, -9, headX, 0)
+        .fillStyle(definition.color, 1).fillTriangle(headX, 20, length + 8, 9, headX, 0)
+        .lineStyle(2, 0xf4f7fa, 0.85).beginPath().moveTo(headX + 2, -16).lineTo(length + 5, -8).strokePath();
+      return;
+    }
+    if (type === 'boomerang') {
+      const tip = length - 2;
+      this.graphics.lineStyle(5, definition.color, 1).beginPath().moveTo(0, 0).lineTo(tip - 14, 0).strokePath()
+        .lineStyle(8, 0xe9fff8, 1).beginPath().moveTo(tip - 14, -13).lineTo(tip, 0).lineTo(tip - 14, 13).strokePath()
+        .lineStyle(3, definition.color, 1).beginPath().moveTo(tip - 14, -13).lineTo(tip, 0).lineTo(tip - 14, 13).strokePath();
       return;
     }
     const thickness = type === 'dagger' ? 7 : type === 'spear' ? 4 : 6;

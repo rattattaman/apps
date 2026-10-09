@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceHammerSpin, burstShotDelays, ContactCooldowns, copyWeaponProgress, growSlimeDps, progressAfterHit, progressAfterObstacleBounce, type WeaponProgress } from './combatLogic';
+import { advanceHammerSpin, axeStrikeDamage, burstShotDelays, ContactCooldowns, copyWeaponProgress, growSlimeDps, progressAfterHit, progressAfterObstacleBounce, type WeaponProgress } from './combatLogic';
 
 const base: WeaponProgress = {
   damage: 8, range: 60, angularSpeed: 2, burstSize: 1, explosionSize: 1, shieldSize: 1, maxSpeed: 3, cutCount: 1,
@@ -19,6 +19,14 @@ describe('progresión de armas', () => {
     expect(progressAfterHit('katana', base)).toMatchObject({ cutCount: 2 });
     expect(progressAfterHit('joust', { ...base, damage: 1, chargeDamage: 1 })).toMatchObject({ damage: 1, chargeDamage: 3 });
     expect(progressAfterHit('hammer', { ...base, angularSpeed: 2.6, maxAngularSpeed: 3 })).toMatchObject({ angularSpeed: 1, maxAngularSpeed: 4 });
+    expect(progressAfterHit('axe', { ...base, criticalChance: 0.1, criticalMultiplier: 2 })).toMatchObject({ criticalChance: 0.13, criticalMultiplier: 2.03 });
+    expect(progressAfterHit('boomerang', base)).toMatchObject({ damage: 10 });
+  });
+
+  it('limita la probabilidad crítica del hacha al 100% sin detener el crecimiento de daño', () => {
+    const result = progressAfterHit('axe', { ...base, criticalChance: 0.99, criticalMultiplier: 2.6 });
+    expect(result.criticalChance).toBe(1);
+    expect(result.criticalMultiplier).toBeCloseTo(2.63);
   });
 
   it('copia toda la progresión jugable sin compartir estado mutable', () => {
@@ -113,5 +121,14 @@ describe('mecánicas de Crossover', () => {
   it('reduce la recarga del láser sin bajar del mínimo seguro', () => {
     expect(progressAfterHit('laser', { ...base, laserCooldownMs: 900 })).toMatchObject({ laserCooldownMs: 850 });
     expect(progressAfterHit('laser', { ...base, laserCooldownMs: 160 })).toMatchObject({ laserCooldownMs: 150 });
+  });
+});
+
+describe('crítico de Hacha', () => {
+  it('aplica el multiplicador únicamente cuando la tirada entra en la probabilidad', () => {
+    const critical = axeStrikeDamage(3, 0.25, 2.3, 0.24);
+    expect(critical.damage).toBeCloseTo(6.9);
+    expect(critical.critical).toBe(true);
+    expect(axeStrikeDamage(3, 0.25, 2.3, 0.25)).toEqual({ damage: 3, critical: false });
   });
 });
