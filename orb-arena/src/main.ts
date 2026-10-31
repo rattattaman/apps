@@ -326,6 +326,9 @@ window.addEventListener('keydown', (event) => {
 
 gameEvents.on('battle:hud', (states: FighterHudState[]) => renderScoreboard(states));
 gameEvents.on('battle:event', (payload: BattleEventPayload) => addEvent(payload));
+gameEvents.on('battle:arena-resized', (size: number) => {
+  resolvedArenaFrame.style.setProperty('--arena-size', `${size}px`);
+});
 gameEvents.on('battle:started', () => {
   // SceneManager finishes CREATE by setting RUNNING; pause after that transition.
   if (!setupOverlay.classList.contains('hidden')) game.events.once(Phaser.Core.Events.POST_STEP, () => {

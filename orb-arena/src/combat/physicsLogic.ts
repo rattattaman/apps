@@ -10,6 +10,18 @@ export interface WallContactCorrection {
   corrected: boolean;
 }
 
+export function arenaSizeForGrowingRadius(
+  currentSize: number,
+  inset: number,
+  radius: number,
+  separation = 1.5,
+  expansionBuffer = 64,
+): number {
+  const requiredSize = 2 * (inset + radius + separation);
+  if (requiredSize <= currentSize) return currentSize;
+  return Math.ceil((requiredSize + expansionBuffer) / 20) * 20;
+}
+
 export function resolveArenaWallContact(
   x: number,
   y: number,

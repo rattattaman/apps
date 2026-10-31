@@ -4,7 +4,7 @@ import { COLLISION, Combatant } from '../combat/Combatant';
 import { axeStrikeDamage, burstShotDelays, ContactCooldowns, growSlimeDps } from '../combat/combatLogic';
 import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from '../combat/cloneLogic';
 import { linkedDuplicates, livingContenderIds } from '../combat/duplicateLogic';
-import { resolveArenaWallContact } from '../combat/physicsLogic';
+import { arenaSizeForGrowingRadius, resolveArenaWallContact } from '../combat/physicsLogic';
 import { ARENA, arenaSizeForFighterCount, BOOMERANG, BOMB, BOTTLE, CHAOS, CROSSBOW, CROSSOVER, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
@@ -258,7 +258,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   shrinkArena(amount: number): void {
     this.arenaInset = Math.min(CHAOS.maxArenaInset, this.arenaInset + amount);
-    this.createWalls();
+    if (!this.ensureArenaContainsFighters()) this.createWalls();
   }
 
   setTemporaryGravity(x: number, y: number, durationMs: number): void {
@@ -1445,7 +1445,10 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     } else {
       progression = fighter.weapon.registerObstacleBounce();
     }
-    if (fighter.selection.weapon === 'giant') fighter.growRadius(CROSSOVER.giantRadiusGrowth);
+    if (fighter.selection.weapon === 'giant') {
+      fighter.growRadius(CROSSOVER.giantRadiusGrowth);
+      this.ensureArenaContainsFighters();
+    }
     if (fighter.selection.weapon === 'fast') fighter.increaseSpeed(CROSSOVER.fastSpeedGrowth * this.globalSpeed);
     this.spark(fighter.x, fighter.y, fighter.visualColor, 5);
     this.floatText(fighter.x, fighter.y - 40, `↑ ${progression}`, fighter.visualColorCss, true);
@@ -1492,6 +1495,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
   }
 
   private resolveWallContacts(): void {
+    this.ensureArenaContainsFighters();
     for (const fighter of this.aliveFighters()) {
       const body = fighter.orb.body as MatterJS.BodyType;
       const correction = resolveArenaWallContact(
@@ -1509,6 +1513,18 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       fighter.orb.setVelocity(correction.velocity.x, correction.velocity.y);
       this.registerCrossoverProgress(fighter);
     }
+  }
+
+  private ensureArenaContainsFighters(): boolean {
+    const largestRadius = this.aliveFighters().reduce((largest, fighter) => Math.max(largest, fighter.radius), 0);
+    const nextSize = arenaSizeForGrowingRadius(this.arenaSize, this.arenaInset, largestRadius);
+    if (nextSize === this.arenaSize) return false;
+    this.arenaSize = nextSize;
+    this.scale.resize(nextSize, nextSize);
+    this.cameras.main.setSize(nextSize, nextSize);
+    this.createWalls();
+    gameEvents.emit('battle:arena-resized', nextSize);
+    return true;
   }
 
   private preventEndlessBattle(elapsed: number): void {

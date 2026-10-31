@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ARENA } from '../config/balance';
-import { resolveArenaWallContact } from './physicsLogic';
+import { arenaSizeForGrowingRadius, resolveArenaWallContact } from './physicsLogic';
 
 const resolve = (x: number, y: number, velocity: { x: number; y: number }) =>
   resolveArenaWallContact(
@@ -38,5 +38,12 @@ describe('salida de paredes', () => {
       velocity: { x: 3, y: -2 },
       corrected: false,
     });
+  });
+
+  it('amplía la arena antes de que un combatiente creciente deje de caber', () => {
+    expect(arenaSizeForGrowingRadius(600, 34, 200)).toBe(600);
+    const expanded = arenaSizeForGrowingRadius(600, 34, 266);
+    expect(expanded).toBeGreaterThan(600);
+    expect(expanded - 2 * (34 + 266 + 1.5)).toBeGreaterThanOrEqual(64);
   });
 });
