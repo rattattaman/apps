@@ -89,9 +89,9 @@ export const AXE = {
 } as const;
 export const BOOMERANG = {
   fireIntervalMs: 2_300,
-  flightDurationMs: 1_350,
+  flightDurationMs: 1_900,
   orbitShare: 0.56,
-  orbitDistance: 132,
+  orbitDistance: 224,
   radius: 12,
   damageGrowth: 2,
 } as const;
