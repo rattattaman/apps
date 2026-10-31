@@ -66,7 +66,7 @@ export class Boomerang {
       };
     }
     const returnProgress = (progress - BOOMERANG.orbitShare) / (1 - BOOMERANG.orbitShare);
-    const angle = this.launchAngle + Math.PI * this.direction;
+    const angle = this.launchAngle + Math.PI * (1 + returnProgress) * this.direction;
     const distance = BOOMERANG.orbitDistance * (1 - returnProgress);
     return {
       x: this.owner.x + Math.cos(angle) * distance,

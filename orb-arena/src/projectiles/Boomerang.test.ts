@@ -17,13 +17,13 @@ function createBoomerang() {
   const scene = { time: { now: 1000 }, matter: { add: { image: vi.fn((_x: number, _y: number) => {
     sprite.x = _x; sprite.y = _y; return sprite;
   }) } } };
-  const owner = { alive: true, x: 200, y: 300 } as Combatant;
-  const boomerang = new Boomerang(scene as unknown as Phaser.Scene, owner, 0, 1, 4);
+  const owner = { alive: true, x: 200, y: 300 };
+  const boomerang = new Boomerang(scene as unknown as Phaser.Scene, owner as Combatant, 0, 1, 4);
   return { boomerang, owner, sprite };
 }
 
 describe('trayectoria del boomerang', () => {
-  it('recorre medio círculo alrededor del dueño y después vuelve', () => {
+  it('recorre medio círculo y vuelve con otra curva hasta el dueño en movimiento', () => {
     const { boomerang, owner, sprite } = createBoomerang();
     expect(sprite.x).toBeCloseTo(owner.x + BOOMERANG.orbitDistance);
     expect(sprite.y).toBeCloseTo(owner.y);
@@ -32,10 +32,12 @@ describe('trayectoria del boomerang', () => {
     expect(sprite.x).toBeCloseTo(owner.x - BOOMERANG.orbitDistance);
     expect(sprite.y).toBeCloseTo(owner.y);
 
+    owner.x += 40;
+    owner.y += 30;
     const returnProgress = BOOMERANG.orbitShare + (1 - BOOMERANG.orbitShare) / 2;
     boomerang.update(boomerang.bornAt + BOOMERANG.flightDurationMs * returnProgress);
-    expect(sprite.x).toBeCloseTo(owner.x - BOOMERANG.orbitDistance / 2);
-    expect(sprite.y).toBeCloseTo(owner.y);
+    expect(sprite.x).toBeCloseTo(owner.x);
+    expect(sprite.y).toBeCloseTo(owner.y - BOOMERANG.orbitDistance / 2);
 
     boomerang.update(boomerang.bornAt + BOOMERANG.flightDurationMs);
     expect(boomerang.alive).toBe(false);
