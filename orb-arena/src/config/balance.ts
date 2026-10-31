@@ -95,6 +95,20 @@ export const BOOMERANG = {
   radius: 12,
   damageGrowth: 2,
 } as const;
+export const MACE = {
+  minRange: 38,
+  maxRange: 112,
+  headRadius: 13,
+  gravity: 118,
+  spring: 7.5,
+  initialRadialVelocity: 28,
+  growthPerHit: 0.5,
+} as const;
+export const CROSSBOW = {
+  fireIntervalMs: 1_900,
+  projectileSpeed: 11.4,
+  damageGrowth: 2,
+} as const;
 export const CROSSOVER = {
   satelliteRadius: 7,
   satelliteOrbitDistance: 60,
@@ -235,6 +249,15 @@ export const WEAPONS: Record<WeaponType, WeaponDefinition> = {
     type: 'boomerang', name: 'Boomerang', glyph: '⌁', color: 0x55e6b2,
     ability: 'Recorre medio círculo y vuelve; cada impacto suma +2 de daño', damage: 1, range: 58, angularSpeed: 3.15,
   },
+  mace: {
+    type: 'mace', name: 'Maza', glyph: '●', color: 0xe39a58,
+    ability: 'Bola con gravedad y cuerda elástica; cada golpe suma +0,5 de tamaño y daño',
+    damage: 1, range: 68, angularSpeed: 2.35, initialMaceSize: MACE.headRadius,
+  },
+  crossbow: {
+    type: 'crossbow', name: 'Ballesta', glyph: '➵', color: 0x74d7ff,
+    ability: 'Dispara un virote; cada impacto suma +2 de daño al siguiente', damage: 1, range: 60, angularSpeed: 2.9,
+  },
 };
 
 export const SEASON_ONE_FIGHTERS: FighterSelection[] = [
@@ -273,6 +296,8 @@ export const CROSSOVER_FIGHTERS: FighterSelection[] = [
 export const SEASON_THREE_FIGHTERS: FighterSelection[] = [
   { name: 'AXIS', weapon: 'axe', color: 0xff795d, colorCss: '#ff795d', season: 3 },
   { name: 'BUMER', weapon: 'boomerang', color: 0x55e6b2, colorCss: '#55e6b2', season: 3 },
+  { name: 'MAZA', weapon: 'mace', color: 0xe39a58, colorCss: '#e39a58', season: 3 },
+  { name: 'VIROTE', weapon: 'crossbow', color: 0x74d7ff, colorCss: '#74d7ff', season: 3 },
 ];
 
 export const DEFAULT_FIGHTERS: FighterSelection[] = [...SEASON_ONE_FIGHTERS, ...SEASON_TWO_FIGHTERS, ...CROSSOVER_FIGHTERS, ...SEASON_THREE_FIGHTERS];

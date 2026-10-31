@@ -1,5 +1,5 @@
 import type { WeaponType } from '../types';
-import { AXE, BOOMERANG, CROSSOVER } from '../config/balance';
+import { AXE, BOOMERANG, CROSSBOW, CROSSOVER, MACE } from '../config/balance';
 
 export interface WeaponProgress {
   damage: number;
@@ -21,6 +21,7 @@ export interface WeaponProgress {
   bombCount?: number;
   criticalChance?: number;
   criticalMultiplier?: number;
+  maceSize?: number;
 }
 
 export function burstShotDelays(count: number, spacingMs: number): number[] {
@@ -33,6 +34,28 @@ export function copyWeaponProgress(source: WeaponProgress): WeaponProgress {
 
 export function advanceHammerSpin(current: number, maximum: number, acceleration: number, deltaSeconds: number): number {
   return Math.min(maximum, current + acceleration * Math.max(0, deltaSeconds));
+}
+
+export function advanceMaceMotion(
+  distance: number,
+  radialVelocity: number,
+  angle: number,
+  restingDistance: number,
+  deltaSeconds: number,
+): { distance: number; radialVelocity: number } {
+  const delta = Math.max(0, deltaSeconds);
+  const gravityAlongRope = Math.sin(angle) * MACE.gravity;
+  const springAcceleration = (restingDistance - distance) * MACE.spring;
+  let nextVelocity = radialVelocity + (gravityAlongRope + springAcceleration) * delta;
+  let nextDistance = distance + nextVelocity * delta;
+  if (nextDistance < MACE.minRange) {
+    nextDistance = MACE.minRange;
+    nextVelocity = Math.abs(nextVelocity) * 0.72;
+  } else if (nextDistance > MACE.maxRange) {
+    nextDistance = MACE.maxRange;
+    nextVelocity = -Math.abs(nextVelocity) * 0.72;
+  }
+  return { distance: nextDistance, radialVelocity: nextVelocity };
 }
 
 export function growSlimeDps(current: number, hasEnemy: boolean, growth = 0.2): number {
@@ -92,6 +115,12 @@ export function progressAfterHit(type: WeaponType, current: WeaponProgress): Wea
       criticalMultiplier: (current.criticalMultiplier ?? AXE.initialCriticalMultiplier) + AXE.growthPerHit,
     };
     case 'boomerang': return { ...current, damage: current.damage + BOOMERANG.damageGrowth };
+    case 'mace': return {
+      ...current,
+      damage: current.damage + MACE.growthPerHit,
+      maceSize: (current.maceSize ?? MACE.headRadius) + MACE.growthPerHit,
+    };
+    case 'crossbow': return { ...current, damage: current.damage + CROSSBOW.damageGrowth };
   }
 }
 
@@ -123,6 +152,8 @@ export function progressionLabel(type: WeaponType, progress: WeaponProgress): st
     case 'fast': return `VEL. MÁX ${format(progress.maxSpeed)}`;
     case 'axe': return `CRÍTICO ${formatPercent(progress.criticalChance ?? AXE.initialCriticalChance)} · DAÑO ×${format(progress.criticalMultiplier ?? AXE.initialCriticalMultiplier)}`;
     case 'boomerang': return `DAÑO ${format(progress.damage)}`;
+    case 'mace': return `DAÑO ${format(progress.damage)} · TAMAÑO ${format(progress.maceSize ?? MACE.headRadius)}`;
+    case 'crossbow': return `PRÓXIMO VIROTE ${format(progress.damage)}`;
   }
 }
 

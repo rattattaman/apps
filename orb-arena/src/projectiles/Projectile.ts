@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { COLLISION, type Combatant } from '../combat/Combatant';
-import { BOMB, BOTTLE, FIREBALL, PROJECTILES } from '../config/balance';
+import { BOMB, BOTTLE, CROSSBOW, FIREBALL, PROJECTILES } from '../config/balance';
 
-export type ProjectileKind = 'arrow' | 'fireball' | 'bolt' | 'shuriken' | 'bottle' | 'bomb';
+export type ProjectileKind = 'arrow' | 'fireball' | 'bolt' | 'shuriken' | 'bottle' | 'bomb' | 'crossbow';
 
 export class Projectile {
   readonly id: string;
@@ -42,7 +42,9 @@ export class Projectile {
     this.bounces = 0;
     this.lastX = x;
     this.lastY = y;
-    const speed = kind === 'fireball' ? FIREBALL.speed : kind === 'bomb' ? BOMB.launchSpeed : PROJECTILES.speed;
+    const speed = kind === 'fireball' ? FIREBALL.speed
+      : kind === 'bomb' ? BOMB.launchSpeed
+        : kind === 'crossbow' ? CROSSBOW.projectileSpeed : PROJECTILES.speed;
     this.sprite.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advanceHammerSpin, axeStrikeDamage, burstShotDelays, ContactCooldowns, copyWeaponProgress, growSlimeDps, progressAfterHit, progressAfterObstacleBounce, type WeaponProgress } from './combatLogic';
+import { advanceHammerSpin, advanceMaceMotion, axeStrikeDamage, burstShotDelays, ContactCooldowns, copyWeaponProgress, growSlimeDps, progressAfterHit, progressAfterObstacleBounce, type WeaponProgress } from './combatLogic';
 
 const base: WeaponProgress = {
   damage: 8, range: 60, angularSpeed: 2, burstSize: 1, explosionSize: 1, shieldSize: 1, maxSpeed: 3, cutCount: 1,
@@ -21,6 +21,8 @@ describe('progresión de armas', () => {
     expect(progressAfterHit('hammer', { ...base, angularSpeed: 2.6, maxAngularSpeed: 3 })).toMatchObject({ angularSpeed: 1, maxAngularSpeed: 4 });
     expect(progressAfterHit('axe', { ...base, criticalChance: 0.1, criticalMultiplier: 2 })).toMatchObject({ criticalChance: 0.13, criticalMultiplier: 2.03 });
     expect(progressAfterHit('boomerang', base)).toMatchObject({ damage: 10 });
+    expect(progressAfterHit('mace', { ...base, damage: 1, maceSize: 13 })).toMatchObject({ damage: 1.5, maceSize: 13.5 });
+    expect(progressAfterHit('crossbow', { ...base, damage: 1 })).toMatchObject({ damage: 3 });
   });
 
   it('limita la probabilidad crítica del hacha al 100% sin detener el crecimiento de daño', () => {
@@ -104,6 +106,15 @@ describe('mecánicas de Frasco y Martillo', () => {
   it('solo aumenta el DPS de la baba cuando hay un enemigo dentro', () => {
     expect(growSlimeDps(1, false)).toBe(1);
     expect(growSlimeDps(1, true)).toBe(1.2);
+  });
+});
+
+describe('mecánica física de Maza', () => {
+  it('la gravedad estira la cuerda al bajar y el muelle la encoge al subir', () => {
+    const downward = advanceMaceMotion(68, 0, Math.PI / 2, 68, 0.1);
+    const upward = advanceMaceMotion(68, 0, -Math.PI / 2, 68, 0.1);
+    expect(downward.distance).toBeGreaterThan(68);
+    expect(upward.distance).toBeLessThan(68);
   });
 });
 

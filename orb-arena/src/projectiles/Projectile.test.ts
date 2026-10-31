@@ -1,7 +1,7 @@
 import type Phaser from 'phaser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Combatant } from '../combat/Combatant';
-import { BOMB, BOTTLE, FIREBALL, PROJECTILES } from '../config/balance';
+import { BOMB, BOTTLE, CROSSBOW, FIREBALL, PROJECTILES } from '../config/balance';
 import { Projectile, type ProjectileKind } from './Projectile';
 
 const { distanceBetween } = vi.hoisted(() => ({
@@ -57,6 +57,14 @@ describe('recorrido y ciclo de vida de proyectiles', () => {
     expect(distanceBetween).not.toHaveBeenCalled();
     expect(projectile.shouldBreakBottle()).toBe(false);
     expect(projectile.damage).toBe(3);
+  });
+
+  it('lanza el virote de ballesta a su velocidad propia y conserva su daño', () => {
+    const { projectile, sprite } = createProjectile('crossbow');
+    expect(sprite.body.velocity).toEqual({ x: CROSSBOW.projectileSpeed, y: 0 });
+    expect(projectile.damage).toBe(3);
+    projectile.update(1016);
+    expect(distanceBetween).not.toHaveBeenCalled();
   });
 
   it('conserva la reflexión, aceleración limitada y número de rebotes', () => {

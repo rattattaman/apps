@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arenaSizeForFighterCount, AXE, BOMB, BOOMERANG, CROSSOVER, CROSSOVER_FIGHTERS, fireballExplosionRadius, SEASON_ONE_FIGHTERS, SEASON_THREE_FIGHTERS, SEASON_TWO_FIGHTERS, shieldWidthForSize, UNARMED, WEAPONS } from './balance';
+import { arenaSizeForFighterCount, AXE, BOMB, BOOMERANG, CROSSBOW, CROSSOVER, CROSSOVER_FIGHTERS, fireballExplosionRadius, MACE, SEASON_ONE_FIGHTERS, SEASON_THREE_FIGHTERS, SEASON_TWO_FIGHTERS, shieldWidthForSize, UNARMED, WEAPONS } from './balance';
 
 describe('arenaSizeForFighterCount', () => {
   it('concentra la arena cuando participan menos orbes', () => {
@@ -14,13 +14,17 @@ describe('arenaSizeForFighterCount', () => {
     expect(arenaSizeForFighterCount(10)).toBe(1420);
   });
 
-  it('inicia la temporada tres con Hacha y Boomerang', () => {
-    expect(SEASON_THREE_FIGHTERS).toHaveLength(2);
+  it('incluye Hacha, Boomerang, Maza y Ballesta en la temporada tres', () => {
+    expect(SEASON_THREE_FIGHTERS).toHaveLength(4);
     expect(SEASON_THREE_FIGHTERS.every((fighter) => fighter.season === 3)).toBe(true);
     expect(WEAPONS.axe.initialCriticalChance).toBe(AXE.initialCriticalChance);
     expect(WEAPONS.axe.initialCriticalMultiplier).toBe(AXE.initialCriticalMultiplier);
     expect(BOOMERANG.damageGrowth).toBe(2);
     expect(WEAPONS.boomerang.damage).toBe(1);
+    expect(WEAPONS.mace.initialMaceSize).toBe(MACE.headRadius);
+    expect(MACE.growthPerHit).toBe(0.5);
+    expect(WEAPONS.crossbow.damage).toBe(1);
+    expect(CROSSBOW.damageGrowth).toBe(2);
   });
 
   it('inicia varita y escudo en nivel uno', () => {

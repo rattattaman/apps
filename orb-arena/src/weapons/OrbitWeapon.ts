@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import type { Combatant } from '../combat/Combatant';
-import { ARENA, CROSSOVER, HAMMER, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
+import { ARENA, CROSSOVER, HAMMER, MACE, SHIELD, shieldWidthForSize, WEAPONS } from '../config/balance';
 import type { Segment } from '../utils/geometry';
-import { advanceHammerSpin, copyWeaponProgress, progressAfterHit, progressAfterObstacleBounce, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
+import { advanceHammerSpin, advanceMaceMotion, copyWeaponProgress, progressAfterHit, progressAfterObstacleBounce, progressionLabel, type WeaponProgress } from '../combat/combatLogic';
 
 export class OrbitWeapon {
   angle: number;
@@ -16,6 +16,7 @@ export class OrbitWeapon {
   private progress: WeaponProgress;
   rangeScale = 1;
   private drawnLength = NaN;
+  private drawnMaceSize = NaN;
   private drawnShieldWidth = NaN;
   private drawnLaserLength = NaN;
   private cachedSegment: Segment | null = null;
@@ -27,6 +28,8 @@ export class OrbitWeapon {
   private segmentShieldWidth = NaN;
   private segmentArenaWidth = NaN;
   private segmentArenaHeight = NaN;
+  private maceDistance = 0;
+  private maceRadialVelocity = 0;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -55,7 +58,10 @@ export class OrbitWeapon {
       bombCount: definition.initialBombCount ?? 1,
       criticalChance: definition.initialCriticalChance ?? 0,
       criticalMultiplier: definition.initialCriticalMultiplier ?? 1,
+      maceSize: definition.initialMaceSize ?? MACE.headRadius,
     };
+    this.maceDistance = definition.range;
+    this.maceRadialVelocity = MACE.initialRadialVelocity;
     this.graphics = this.scene.add.graphics().setDepth(5);
     this.satelliteGraphics = this.scene.add.graphics().setDepth(6);
     this.laserGraphics = this.scene.add.graphics().setDepth(5);
@@ -63,7 +69,10 @@ export class OrbitWeapon {
   }
 
   get damage(): number { return this.progress.damage; }
-  get range(): number { return this.progress.range * this.rangeScale; }
+  get range(): number {
+    const range = this.owner.selection.weapon === 'mace' ? this.maceDistance : this.progress.range;
+    return range * this.rangeScale;
+  }
   get burstSize(): number { return this.progress.burstSize; }
   get explosionSize(): number { return this.progress.explosionSize; }
   get maxSpeed(): number { return this.progress.maxSpeed; }
@@ -80,12 +89,15 @@ export class OrbitWeapon {
   get bombCount(): number { return this.progress.bombCount ?? 1; }
   get criticalChance(): number { return this.progress.criticalChance ?? 0; }
   get criticalMultiplier(): number { return this.progress.criticalMultiplier ?? 1; }
+  get maceHeadRadius(): number { return this.progress.maceSize ?? MACE.headRadius; }
 
   copyGameplayProgressFrom(other: OrbitWeapon): void {
     this.progress = copyWeaponProgress(other.progress);
     this.rangeScale = other.rangeScale;
     this.lynaAngles = [...other.lynaAngles];
     this.lynaSpeeds = [...other.lynaSpeeds];
+    this.maceDistance = other.maceDistance;
+    this.maceRadialVelocity = other.maceRadialVelocity;
   }
   get shieldWidth(): number { return shieldWidthForSize(this.progress.shieldSize); }
   get progressionText(): string { return progressionLabel(this.owner.selection.weapon, this.progress); }
@@ -99,6 +111,17 @@ export class OrbitWeapon {
         + (this.lynaSpeeds[index] ?? 0) * spinDirection * deltaSeconds;
     }
     this.angle += this.progress.angularSpeed * this.direction * spinDirection * deltaSeconds;
+    if (this.owner.selection.weapon === 'mace') {
+      const motion = advanceMaceMotion(
+        this.maceDistance,
+        this.maceRadialVelocity,
+        this.angle,
+        this.progress.range,
+        deltaSeconds,
+      );
+      this.maceDistance = motion.distance;
+      this.maceRadialVelocity = motion.radialVelocity;
+    }
     if (render) this.render();
   }
 
@@ -221,6 +244,18 @@ export class OrbitWeapon {
     const segment = this.radialSegment();
     const length = this.range + 4;
     this.graphics.setPosition(segment.start.x, segment.start.y).setRotation(this.angle);
+    if (type === 'mace') {
+      if (this.drawnLength === length && this.drawnMaceSize === this.maceHeadRadius) return;
+      this.drawnLength = length;
+      this.drawnMaceSize = this.maceHeadRadius;
+      this.graphics.clear()
+        .lineStyle(3, 0xaeb6c2, 0.95).beginPath().moveTo(0, 0).lineTo(length, 0).strokePath()
+        .lineStyle(1, 0x4c5665, 0.9).beginPath().moveTo(3, 2).lineTo(length - 2, 2).strokePath()
+        .fillStyle(0x26313c, 1).fillCircle(length, 0, this.maceHeadRadius + 2)
+        .lineStyle(3, definition.color, 1).strokeCircle(length, 0, this.maceHeadRadius)
+        .fillStyle(0xe7edf5, 0.75).fillCircle(length - this.maceHeadRadius * 0.35, -this.maceHeadRadius * 0.35, Math.max(2, this.maceHeadRadius * 0.22));
+      return;
+    }
     if (this.drawnLength === length) return;
     this.drawnLength = length;
     this.graphics.clear();
@@ -229,6 +264,15 @@ export class OrbitWeapon {
         .beginPath().arc(length * 0.56, 0, 19, -1.25, 1.25, false).strokePath()
         .lineStyle(2, 0xe8e5ff, 0.75)
         .beginPath().moveTo(length * 0.56 + 6, -18).lineTo(length * 0.34, 0).lineTo(length * 0.56 + 6, 18).strokePath();
+      return;
+    }
+    if (type === 'crossbow') {
+      const bowX = length - 18;
+      this.graphics.lineStyle(8, 0x7b5639, 1).beginPath().moveTo(0, 0).lineTo(length - 3, 0).strokePath()
+        .lineStyle(3, 0xe7c89b, 0.8).beginPath().moveTo(4, -2).lineTo(length - 7, -2).strokePath()
+        .lineStyle(6, definition.color, 1).beginPath().moveTo(bowX, -18).lineTo(length - 5, 0).lineTo(bowX, 18).strokePath()
+        .lineStyle(2, 0xeafaff, 0.9).beginPath().moveTo(bowX, -18).lineTo(bowX - 7, 0).lineTo(bowX, 18).strokePath()
+        .fillStyle(0xf3fbff, 1).fillTriangle(length + 5, 0, length - 5, -5, length - 5, 5);
       return;
     }
     if (type === 'wand') {

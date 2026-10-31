@@ -5,7 +5,7 @@ import { axeStrikeDamage, burstShotDelays, ContactCooldowns, growSlimeDps } from
 import { canCreateClone, cloneHealthForNumber, createCloneIdentity } from '../combat/cloneLogic';
 import { linkedDuplicates, livingContenderIds } from '../combat/duplicateLogic';
 import { resolveArenaWallContact } from '../combat/physicsLogic';
-import { ARENA, arenaSizeForFighterCount, BOOMERANG, BOMB, BOTTLE, CHAOS, CROSSOVER, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
+import { ARENA, arenaSizeForFighterCount, BOOMERANG, BOMB, BOTTLE, CHAOS, CROSSBOW, CROSSOVER, DEFAULT_FIGHTERS, FIREBALL, fireballExplosionRadius, JOUST, KATANA, PROJECTILES, SHIELD, SHURIKEN, SLIME, TURRET, UNARMED } from '../config/balance';
 import { gameEvents } from '../events';
 import { ChaosController, type ChaosHost } from '../modifiers/ChaosController';
 import { Projectile } from '../projectiles/Projectile';
@@ -188,6 +188,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     this.updateTurrets(time, deltaSeconds);
     this.steerTowardRivals(deltaSeconds);
     this.updateMeleeCombat(time);
+    this.updateMaceCombat(time);
     this.updateSatelliteCombat(time);
     this.updateLynaCombat(time);
     this.updateLaserCombat(time);
@@ -367,6 +368,15 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
       const graphics = this.make.graphics({ x: 0, y: 0 });
       graphics.fillStyle(0xe9e5ff).fillRect(0, 3, 25, 3).fillTriangle(34, 4, 23, 0, 23, 8);
       graphics.generateTexture('arrow', 36, 9);
+      graphics.destroy();
+    }
+    if (!this.textures.exists('crossbow')) {
+      const graphics = this.make.graphics({ x: 0, y: 0 });
+      graphics.fillStyle(0x91e4ff, 1).fillRect(1, 4, 24, 4)
+        .fillStyle(0xf3fbff, 1).fillTriangle(35, 6, 23, 0, 23, 12)
+        .fillStyle(0x4f7180, 1).fillTriangle(3, 6, 0, 1, 9, 5)
+        .fillTriangle(3, 6, 0, 11, 9, 7);
+      graphics.generateTexture('crossbow', 36, 13);
       graphics.destroy();
     }
     if (!this.textures.exists('fireball')) {
@@ -578,7 +588,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
     const alive = this.aliveFighters();
     for (const attacker of alive) {
       if (!attacker.alive) continue;
-      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator', 'exploder', 'fast'].includes(attacker.selection.weapon)) continue;
+      if (['bow', 'wand', 'shield', 'unarmed', 'shuriken', 'bottle', 'crusher', 'orbit', 'giant', 'laser', 'lyna', 'duplicator', 'exploder', 'fast', 'mace', 'crossbow'].includes(attacker.selection.weapon)) continue;
       const segment = attacker.weapon.segment();
       for (const target of alive) {
         if (!rivals(attacker, target) || !target.alive) continue;
@@ -613,6 +623,29 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         const applied = this.applyDamage(attacker, target, hitDamage, knockback, segment.end.x, segment.end.y, !charging);
         if (critical && applied > 0) this.floatText(target.x, target.y - 47, '¡CRÍTICO!', '#ffd27a', true);
         if (attacker.selection.weapon === 'scythe' && target.alive) this.applyPoison(attacker, target);
+      }
+    }
+  }
+
+  private updateMaceCombat(now: number): void {
+    const alive = this.aliveFighters();
+    for (const attacker of alive) {
+      if (!attacker.alive || attacker.selection.weapon !== 'mace') continue;
+      const head = attacker.weapon.segment().end;
+      const headRadius = attacker.weapon.maceHeadRadius;
+      for (const target of alive) {
+        if (!rivals(attacker, target) || !target.alive) continue;
+        if (target.selection.weapon === 'shield'
+          && pointToSegmentDistanceSquared(head, target.weapon.segment()) <= (SHIELD.thickness + headRadius) ** 2) {
+          if (this.cooldowns.canTrigger(`shield-${target.id}`, attacker.id, now, ARENA.weaponHitCooldownMs)) {
+            this.applyReflectedDamage(target, attacker, attacker.weapon.damage, head.x, head.y);
+          }
+          continue;
+        }
+        const hitRadius = target.radius + headRadius;
+        if (Phaser.Math.Distance.Squared(head.x, head.y, target.x, target.y) > hitRadius ** 2) continue;
+        if (!this.cooldowns.canTrigger(attacker.id, target.id, now, ARENA.weaponHitCooldownMs)) continue;
+        this.applyDamage(attacker, target, attacker.weapon.damage, 1.25, head.x, head.y);
       }
     }
   }
@@ -821,7 +854,7 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
 
   private updateRangedWeapons(now: number): void {
     for (const fighter of this.aliveFighters()) {
-      if (!['bow', 'wand', 'shuriken', 'bottle', 'boomerang'].includes(fighter.selection.weapon)) continue;
+      if (!['bow', 'wand', 'shuriken', 'bottle', 'boomerang', 'crossbow'].includes(fighter.selection.weapon)) continue;
       if (now < (this.nextShotAt.get(fighter.id) ?? 0)) continue;
       const target = this.nearestRival(fighter);
       if (!target) continue;
@@ -835,6 +868,16 @@ export class BattleScene extends Phaser.Scene implements ChaosHost {
         this.nextShotAt.set(fighter.id, now + BOOMERANG.fireIntervalMs);
         this.boomerangs.push(new Boomerang(
           this, fighter, fighter.weapon.angle, fighter.weapon.direction, this.projectileSequence++,
+        ));
+        this.audio.shot();
+        continue;
+      }
+      if (fighter.selection.weapon === 'crossbow') {
+        this.nextShotAt.set(fighter.id, now + CROSSBOW.fireIntervalMs);
+        const start = fighter.weapon.segment().end;
+        this.projectiles.push(new Projectile(
+          this, fighter, fighter.weapon.damage, start.x, start.y,
+          fighter.weapon.angle, this.projectileSequence++, 'crossbow',
         ));
         this.audio.shot();
         continue;

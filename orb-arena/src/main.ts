@@ -177,7 +177,11 @@ function initialHud(config: BattleConfig): FighterHudState[] {
                                         ? `CRÍTICO ${Math.round((WEAPONS.axe.initialCriticalChance ?? 0.1) * 100)}% · DAÑO ×${WEAPONS.axe.initialCriticalMultiplier ?? 2}`
                                         : fighter.weapon === 'boomerang'
                                           ? `DAÑO ${WEAPONS.boomerang.damage}`
-                  : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
+                                          : fighter.weapon === 'mace'
+                                            ? `DAÑO ${WEAPONS.mace.damage} · TAMAÑO ${WEAPONS.mace.initialMaceSize ?? 13}`
+                                            : fighter.weapon === 'crossbow'
+                                              ? `PRÓXIMO VIROTE ${WEAPONS.crossbow.damage}`
+                                              : `DAÑO ${WEAPONS[fighter.weapon].damage}`,
   }));
 }
 
